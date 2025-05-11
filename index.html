@@ -19,7 +19,6 @@
         id="searchInput"
         class="form-control"
         placeholder="Search product by name or SKU"
-        oninput="filterProducts()"
       />
     </div>
 
@@ -43,30 +42,38 @@
     </div>
   </div>
 
+  <!-- JavaScript: placed at the end for proper loading -->
   <script>
     let allProducts = [];
     let printList = [];
 
-    // Fetch product list from Netlify function
-    fetch('/.netlify/functions/get-products')
-      .then(res => res.json())
-      .then(products => {
-        allProducts = products.map(product => {
-          const variant = product.variants[0]; // Use first variant
-          return {
-            id: product.id,
-            sku: variant.sku || variant.id,
-            title: product.title,
-            price: variant.price,
-            chineseName: "",
-          };
+    // Setup search input listener after DOM loads
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("searchInput").addEventListener("input", filterProducts);
+      loadProducts();
+    });
+
+    function loadProducts() {
+      fetch('/.netlify/functions/get-products')
+        .then(res => res.json())
+        .then(products => {
+          allProducts = products.map(product => {
+            const variant = product.variants[0]; // Use first variant
+            return {
+              id: product.id,
+              sku: variant.sku || variant.id,
+              title: product.title,
+              price: variant.price,
+              chineseName: "",
+            };
+          });
+          renderProducts(allProducts);
+        })
+        .catch(err => {
+          document.getElementById("productList").innerHTML =
+            `<tr><td colspan="5" class="text-danger">Failed to load products: ${err}</td></tr>`;
         });
-        renderProducts(allProducts);
-      })
-      .catch(err => {
-        document.getElementById("productList").innerHTML =
-          `<tr><td colspan="5" class="text-danger">Failed to load products: ${err}</td></tr>`;
-      });
+    }
 
     function renderProducts(data) {
       const tbody = document.getElementById("productList");
@@ -85,19 +92,19 @@
       });
     }
 
+    function filterProducts() {
+      const keyword = document.getElementById("searchInput").value.toLowerCase();
+      const filtered = allProducts.filter(p =>
+        p.title.toLowerCase().includes(keyword) || (p.sku && p.sku.toLowerCase().includes(keyword))
+      );
+      renderProducts(filtered);
+    }
+
     function addToPrintList(id, inputId) {
       const cnName = document.getElementById(inputId).value.trim();
       const product = allProducts.find(p => p.id == id);
       if (!product) return;
       printList.push({ ...product, chineseName: cnName });
-      alert(`Added "${product.title}" to print list.`);
-    }
-
-
-    function addToPrintList(index) {
-      const cnName = document.getElementById(`cn-${index}`).value.trim();
-      const product = { ...allProducts[index], chineseName: cnName };
-      printList.push(product);
       alert(`Added "${product.title}" to print list.`);
     }
 
