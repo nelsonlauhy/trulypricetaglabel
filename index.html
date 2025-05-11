@@ -4,22 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Truly Price Tag Label Tool</title>
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
 <body class="p-4 bg-light">
   <div class="container">
     <h2>🛍️ Truly Market - Price Tag Label Tool</h2>
 
     <div class="my-3">
-      <input
-        type="text"
-        id="searchInput"
-        class="form-control"
-        placeholder="Search product by name or SKU"
-      />
+      <input type="text" id="searchInput" class="form-control" placeholder="Search product by name or SKU" />
     </div>
 
     <table class="table table-bordered" id="productTable">
@@ -42,12 +34,10 @@
     </div>
   </div>
 
-  <!-- JavaScript: placed at the end for proper loading -->
   <script>
     let allProducts = [];
     let printList = [];
 
-    // Setup search input listener after DOM loads
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("searchInput").addEventListener("input", filterProducts);
       loadProducts();
@@ -58,7 +48,7 @@
         .then(res => res.json())
         .then(products => {
           allProducts = products.map(product => {
-            const variant = product.variants[0]; // Use first variant
+            const variant = product.variants[0];
             return {
               id: product.id,
               sku: variant.sku || variant.id,
@@ -95,8 +85,7 @@
     function filterProducts() {
       const keyword = document.getElementById("searchInput").value.toLowerCase();
       const filtered = allProducts.filter(p =>
-        p.title.toLowerCase().includes(keyword) || (p.sku && String(p.sku).toLowerCase().includes(keyword))
-
+        p.title.toLowerCase().includes(keyword) || String(p.sku).toLowerCase().includes(keyword)
       );
       renderProducts(filtered);
     }
@@ -114,7 +103,7 @@
         alert("No products in print list.");
         return;
       }
-      console.log("To be implemented: PDF generation with", printList);
+      console.log("Ready to print:", printList);
       alert("PDF generation coming next!");
     }
   </script>
