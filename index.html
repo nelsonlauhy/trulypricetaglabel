@@ -10,10 +10,13 @@
   <div class="container">
     <h2>🛍️ Truly Market - Price Tag Label Tool</h2>
 
-    <div class="my-3">
-      <input type="text" id="searchInput" class="form-control" placeholder="Search product by name or SKU" />
+    <!-- Search UI -->
+    <div class="input-group my-3">
+      <input type="text" id="searchInput" class="form-control" placeholder="Enter product name or SKU" />
+      <button class="btn btn-outline-primary" onclick="searchProducts()">Search</button>
     </div>
 
+    <!-- Product Table -->
     <table class="table table-bordered" id="productTable">
       <thead class="table-light">
         <tr>
@@ -25,7 +28,7 @@
         </tr>
       </thead>
       <tbody id="productList">
-        <tr><td colspan="5">Loading products...</td></tr>
+        <tr><td colspan="5">Please search a product.</td></tr>
       </tbody>
     </table>
 
@@ -34,17 +37,19 @@
     </div>
   </div>
 
+  <!-- JS Logic -->
   <script>
     let allProducts = [];
     let printList = [];
 
-    document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("searchInput").addEventListener("input", filterProducts);
-      loadProducts();
-    });
+    function searchProducts() {
+      const keyword = document.getElementById("searchInput").value.trim();
+      if (!keyword) return alert("Please enter a keyword to search.");
 
-    function loadProducts() {
-      fetch('/.netlify/functions/get-products')
+      document.getElementById("productList").innerHTML =
+        `<tr><td colspan="5">Searching for "${keyword}"...</td></tr>`;
+
+      fetch(`/.netlify/functions/search-products?keyword=${encodeURIComponent(keyword)}`)
         .then(res => res.json())
         .then(products => {
           allProducts = products.map(product => {
@@ -61,13 +66,18 @@
         })
         .catch(err => {
           document.getElementById("productList").innerHTML =
-            `<tr><td colspan="5" class="text-danger">Failed to load products: ${err}</td></tr>`;
+            `<tr><td colspan="5" class="text-danger">Search failed: ${err.message}</td></tr>`;
         });
     }
 
     function renderProducts(data) {
       const tbody = document.getElementById("productList");
       tbody.innerHTML = "";
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">No products found.</td></tr>`;
+        return;
+      }
+
       data.forEach(product => {
         const inputId = `cn-${product.id}`;
         const row = document.createElement("tr");
@@ -80,14 +90,6 @@
         `;
         tbody.appendChild(row);
       });
-    }
-
-    function filterProducts() {
-      const keyword = document.getElementById("searchInput").value.toLowerCase();
-      const filtered = allProducts.filter(p =>
-        p.title.toLowerCase().includes(keyword) || String(p.sku).toLowerCase().includes(keyword)
-      );
-      renderProducts(filtered);
     }
 
     function addToPrintList(id, inputId) {
@@ -103,8 +105,8 @@
         alert("No products in print list.");
         return;
       }
-      console.log("Ready to print:", printList);
-      alert("PDF generation coming next!");
+      console.log("🖨️ PDF generation coming next with:", printList);
+      alert("PDF generation will be implemented next.");
     }
   </script>
 </body>
