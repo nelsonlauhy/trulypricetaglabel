@@ -95,7 +95,8 @@
     function filterProducts() {
       const keyword = document.getElementById("searchInput").value.toLowerCase();
       const filtered = allProducts.filter(p =>
-        p.title.toLowerCase().includes(keyword) || (p.sku && p.sku.toLowerCase().includes(keyword))
+        p.title.toLowerCase().includes(keyword) || (p.sku && String(p.sku).toLowerCase().includes(keyword))
+
       );
       renderProducts(filtered);
     }
