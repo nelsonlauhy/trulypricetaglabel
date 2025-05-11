@@ -71,26 +71,28 @@
     function renderProducts(data) {
       const tbody = document.getElementById("productList");
       tbody.innerHTML = "";
-      data.forEach((product, index) => {
+      data.forEach(product => {
+        const inputId = `cn-${product.id}`;
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${product.sku}</td>
           <td>${product.title}</td>
-          <td><input type="text" class="form-control form-control-sm" id="cn-${index}" placeholder="輸入中文名稱"></td>
+          <td><input type="text" class="form-control form-control-sm" id="${inputId}" placeholder="輸入中文名稱"></td>
           <td>$${product.price}</td>
-          <td><button class="btn btn-sm btn-success" onclick="addToPrintList(${index})">Add</button></td>
+          <td><button class="btn btn-sm btn-success" onclick="addToPrintList('${product.id}', '${inputId}')">Add</button></td>
         `;
         tbody.appendChild(row);
       });
     }
 
-    function filterProducts() {
-      const keyword = document.getElementById("searchInput").value.toLowerCase();
-      const filtered = allProducts.filter(p =>
-        p.title.toLowerCase().includes(keyword) || (p.sku && p.sku.toLowerCase().includes(keyword))
-      );
-      renderProducts(filtered);
+    function addToPrintList(id, inputId) {
+      const cnName = document.getElementById(inputId).value.trim();
+      const product = allProducts.find(p => p.id == id);
+      if (!product) return;
+      printList.push({ ...product, chineseName: cnName });
+      alert(`Added "${product.title}" to print list.`);
     }
+
 
     function addToPrintList(index) {
       const cnName = document.getElementById(`cn-${index}`).value.trim();
