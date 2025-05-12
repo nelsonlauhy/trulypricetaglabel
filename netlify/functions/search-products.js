@@ -1,5 +1,5 @@
 export async function handler(event, context) {
-  const keyword = event.queryStringParameters.keyword || "";
+  const keyword = (event.queryStringParameters.keyword || "").toLowerCase();
   if (!keyword) {
     return {
       statusCode: 400,
@@ -11,7 +11,7 @@ export async function handler(event, context) {
   const API_VERSION = "2025-04";
   const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-  const url = `https://${SHOPIFY_DOMAIN}/admin/api/${API_VERSION}/products.json?limit=50&title=${encodeURIComponent(keyword)}`;
+  const url = `https://${SHOPIFY_DOMAIN}/admin/api/${API_VERSION}/products.json?limit=250`;
 
   try {
     const response = await fetch(url, {
@@ -30,9 +30,17 @@ export async function handler(event, context) {
     }
 
     const data = await response.json();
+
+    // Manual filter by title or SKU (case-insensitive)
+    const filtered = data.products.filter(p => {
+      const title = p.title.toLowerCase();
+      const sku = (p.variants[0]?.sku || "").toLowerCase();
+      return title.includes(keyword) || sku.includes(keyword);
+    });
+
     return {
       statusCode: 200,
-      body: JSON.stringify(data.products),
+      body: JSON.stringify(filtered),
     };
 
   } catch (error) {
