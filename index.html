@@ -12,15 +12,14 @@
   <div class="container-fluid">
     <h2 class="mb-4">📦 Product Label Table</h2>
 
-    <!-- Search -->
+    <!-- Live Search Input -->
     <div class="input-group mb-3">
       <input type="text" id="searchInput" class="form-control" placeholder="Search by Title or Barcode" />
-      <button class="btn btn-outline-secondary" onclick="searchRecords()">Search</button>
     </div>
 
     <!-- Table -->
     <div class="table-responsive">
-      <table class="table table-striped table-bordered" id="productTable">
+      <table class="table table-striped table-bordered">
         <thead class="table-light">
           <tr>
             <th>Variant ID</th>
@@ -45,7 +44,7 @@
   </div>
 
   <script>
-    // ✅ Your Firebase config
+    // ✅ Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
       authDomain: "trulymarket-c25b6.firebaseapp.com",
@@ -99,16 +98,32 @@
       const pagination = document.getElementById("pagination");
       pagination.innerHTML = "";
 
-      for (let i = 1; i <= pageCount; i++) {
-        const li = document.createElement("li");
-        li.className = "page-item" + (i === currentPage ? " active" : "");
-        li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
-        li.onclick = () => {
-          currentPage = i;
+      const prevLi = document.createElement("li");
+      prevLi.className = "page-item" + (currentPage === 1 ? " disabled" : "");
+      prevLi.innerHTML = `<a class="page-link" href="#">« Prev</a>`;
+      prevLi.onclick = () => {
+        if (currentPage > 1) {
+          currentPage--;
           renderList(filteredData);
-        };
-        pagination.appendChild(li);
-      }
+        }
+      };
+      pagination.appendChild(prevLi);
+
+      const statusLi = document.createElement("li");
+      statusLi.className = "page-item disabled";
+      statusLi.innerHTML = `<span class="page-link">Page ${currentPage} of ${pageCount}</span>`;
+      pagination.appendChild(statusLi);
+
+      const nextLi = document.createElement("li");
+      nextLi.className = "page-item" + (currentPage === pageCount ? " disabled" : "");
+      nextLi.innerHTML = `<a class="page-link" href="#">Next »</a>`;
+      nextLi.onclick = () => {
+        if (currentPage < pageCount) {
+          currentPage++;
+          renderList(filteredData);
+        }
+      };
+      pagination.appendChild(nextLi);
     }
 
     function searchRecords() {
@@ -130,6 +145,9 @@
       allData = snapshot.docs.map(doc => doc.data());
       filteredData = [...allData];
       renderList(filteredData);
+
+      // 🔍 Live search on input
+      document.getElementById("searchInput").addEventListener("input", searchRecords);
     }
 
     loadData();
