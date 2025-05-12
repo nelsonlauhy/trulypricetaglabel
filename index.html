@@ -28,9 +28,13 @@
       color: #555;
     }
     img.thumb {
-      max-width: 80px;
-      max-height: 80px;
-      object-fit: contain;
+      width: 50px;
+      height: auto;
+      cursor: pointer;
+    }
+    #modalImage {
+      width: 100%;
+      height: auto;
     }
   </style>
 </head>
@@ -38,7 +42,7 @@
   <div class="container-fluid">
     <h2 class="mb-4">📦 Product Label Table</h2>
 
-    <!-- Search with clear button -->
+    <!-- Search input with clear button -->
     <div id="searchWrapper" class="mb-3">
       <input type="text" id="searchInput" class="form-control" placeholder="Search by Title or Barcode" />
       <span id="clearSearchBtn">&times;</span>
@@ -71,6 +75,17 @@
     </nav>
   </div>
 
+  <!-- Modal for image enlarge -->
+  <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-body p-0">
+          <img id="modalImage" src="" alt="Enlarged Product Image" />
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
@@ -90,6 +105,12 @@
     let currentPage = 1;
     const itemsPerPage = 10;
 
+    function showImageModal(src) {
+      document.getElementById("modalImage").src = src;
+      const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+      modal.show();
+    }
+
     function renderList(data) {
       const tbody = document.getElementById("productList");
       tbody.innerHTML = "";
@@ -107,7 +128,7 @@
         const row = document.createElement("tr");
 
         const img = doc["Image URL"]
-          ? `<img src="${doc["Image URL"]}" alt="Image" class="thumb" />`
+          ? `<img src="${doc["Image URL"]}" alt="Image" class="thumb" onclick="showImageModal('${doc["Image URL"]}')"/>`
           : "";
 
         row.innerHTML = `
@@ -184,7 +205,7 @@
       filteredData = [...allData];
       renderList(filteredData);
 
-      // Search & clear button listeners
+      // Search field and clear button
       const input = document.getElementById("searchInput");
       const clearBtn = document.getElementById("clearSearchBtn");
 
@@ -198,5 +219,8 @@
 
     loadData();
   </script>
+
+  <!-- Bootstrap JS (for modal) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
