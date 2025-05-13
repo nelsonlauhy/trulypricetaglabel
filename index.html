@@ -329,7 +329,8 @@
         const data = await res.json();
         console.log("Response from translate function:", data);
 
-        const translated = data?.translatedText;
+        const translated = data?.data?.translations?.[0]?.translatedText;
+        console.log("Extracted translation:", translated);
 
         if (translated) {
           const editableCell = row.querySelector('[data-field="ProductNameChi"]');
@@ -345,6 +346,7 @@
       button.disabled = false;
       button.textContent = "🈶";
     }
+
 
 
     loadData();

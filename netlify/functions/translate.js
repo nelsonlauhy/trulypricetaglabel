@@ -17,12 +17,11 @@ exports.handler = async (event) => {
     });
 
     const data = await response.json();
+    console.log("Google Translate raw response:", JSON.stringify(data));
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        translatedText: data?.data?.translations?.[0]?.translatedText || ""
-      })
+      body: JSON.stringify(data)
     };
   } catch (error) {
     return {
