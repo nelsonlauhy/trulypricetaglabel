@@ -265,7 +265,7 @@
       if ([...tagContainer.children].some(el => el.dataset.variantId == variantId)) return;
 
       const ProductNameEng = row.cells[5]?.textContent.trim();
-      const ProductNameChi = row.cells[6]?.textContent.trim();
+      const ProductNameChi = row.querySelector('[data-field="ProductNameChi"]')?.textContent.trim();
       const ProductDesc = row.cells[7]?.textContent.trim();
 
       // ✅ Update Firestore
