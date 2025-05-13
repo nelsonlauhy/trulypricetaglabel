@@ -186,6 +186,7 @@
               <button class="btn btn-sm btn-light ms-2 py-0 px-1" title="Translate" onclick="translateToChinese(this)">🈶</button>
             </div>
           </td>
+
           <td contenteditable="true" data-field="ProductDesc">${doc["ProductDesc"] || ""}</td>
           <td><button class="btn btn-sm btn-outline-primary" onclick="addToPrintList('${titleText.replace(/'/g, "\\'")}')">Add to Print List</button></td>
         `;
@@ -318,34 +319,30 @@
       button.textContent = "⏳";
 
       try {
-        const res = await fetch("https://translation.googleapis.com/language/translate/v2?key=AIzaSyDbjjw4ZGwYCFNAxEjqmBTG62fQ7TsiatQ", {
+        const res = await fetch("/.netlify/functions/translate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            q: sourceText,
-            source: "en",
-            target: "zh-TW",
-            format: "text"
-          })
+          body: JSON.stringify({ text: sourceText })
         });
 
         const data = await res.json();
-        if (data && data.data && data.data.translations && data.data.translations[0]) {
-          const translatedText = data.data.translations[0].translatedText;
+        const translated = data.translatedText;
+
+        if (translated) {
           const editableCell = row.querySelector('[data-field="ProductNameChi"]');
-          editableCell.textContent = translatedText;
+          editableCell.textContent = translated;
         } else {
-          alert("❌ Translation failed.");
-          console.log(data);
+          alert("❌ Failed to translate text.");
         }
       } catch (err) {
-        alert("🚫 Error calling Google Translate API.");
+        alert("🚫 Error calling translation function.");
         console.error(err);
       }
 
       button.disabled = false;
       button.textContent = "🈶";
     }
+
 
 
     loadData();
