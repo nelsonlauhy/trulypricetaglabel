@@ -442,7 +442,7 @@
         const marginX = 30;
         const marginY = 20;
         const x = col === 0 ? marginX : marginX + labelWidth + 20; // space between columns
-        const y = pageHeight - (row * labelHeight) - marginY;
+        const y = pageHeight - (row * labelHeight) - marginY - 20; // extra top buffer
 
         // QR Code
         if (item.ProductURL) {
