@@ -266,23 +266,38 @@
       const ProductNameChi = row.cells[6]?.textContent.trim();
       const ProductDesc = row.cells[7]?.textContent.trim();
 
+      // ✅ Update Firestore
       db.collection("pricetaglabel")
         .where("Variant ID", "==", variantId)
         .get()
         .then(snapshot => {
           if (snapshot.empty) {
             alert("⚠️ Cannot update — record not found.");
+            console.warn("No document found for Variant ID:", variantId);
             return;
           }
+
           snapshot.forEach(doc => {
-            db.collection("pricetaglabel").doc(doc.id).update({
+            console.log("✅ Updating doc:", doc.id, {
               ProductNameEng,
               ProductNameChi,
               ProductDesc
             });
+
+            db.collection("pricetaglabel").doc(doc.id).update({
+              ProductNameEng,
+              ProductNameChi,
+              ProductDesc
+            })
+            .then(() => console.log("✅ Update successful:", doc.id))
+            .catch(error => console.error("❌ Update failed:", error));
           });
+        })
+        .catch(error => {
+          console.error("❌ Firestore query failed:", error);
         });
 
+      // ✅ Create visual tag
       const tag = document.createElement("span");
       tag.className = "tag";
       tag.dataset.variantId = variantId;
@@ -295,6 +310,7 @@
 
       toggleSubmitButton();
     }
+
 
 
     async function loadData() {
