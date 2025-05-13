@@ -20,7 +20,9 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ translatedText: data?.data?.translations?.[0]?.translatedText || "" })
+      body: JSON.stringify({
+        translatedText: data?.data?.translations?.[0]?.translatedText || ""
+      })
     };
   } catch (error) {
     return {

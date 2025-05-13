@@ -187,6 +187,7 @@
             </div>
           </td>
 
+
           <td contenteditable="true" data-field="ProductDesc">${doc["ProductDesc"] || ""}</td>
           <td><button class="btn btn-sm btn-outline-primary" onclick="addToPrintList('${titleText.replace(/'/g, "\\'")}')">Add to Print List</button></td>
         `;
@@ -326,7 +327,9 @@
         });
 
         const data = await res.json();
-        const translated = data.translatedText;
+        console.log("Response from translate function:", data);
+
+        const translated = data?.translatedText;
 
         if (translated) {
           const editableCell = row.querySelector('[data-field="ProductNameChi"]');
@@ -335,14 +338,13 @@
           alert("❌ Failed to translate text.");
         }
       } catch (err) {
-        alert("🚫 Error calling translation function.");
+        alert("🚫 Error calling Google Translate function.");
         console.error(err);
       }
 
       button.disabled = false;
       button.textContent = "🈶";
     }
-
 
 
     loadData();
