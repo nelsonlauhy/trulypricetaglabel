@@ -376,11 +376,92 @@
       submitBtn.classList.toggle("d-none", tagContainer.children.length === 0);
     }
 
-    function submitPrintList() {
+    async function submitPrintList() {
       const tagContainer = document.getElementById("printListTags");
-      const variantIds = [...tagContainer.children].map(tag => tag.dataset.variantId);
-      console.log("🖨️ Ready to generate PDF for Variant IDs:", variantIds);
-      // TODO: Implement PDF generation logic
+      const variantIds = [...tagContainer.children].map(tag => Number(tag.dataset.variantId));
+
+      if (variantIds.length === 0) {
+        alert("No items in print list.");
+        return;
+      }
+
+      const labelData = [];
+
+      for (const variantId of variantIds) {
+        const snapshot = await db.collection("pricetaglabel")
+          .where("Variant ID", "==", variantId)
+          .get();
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          labelData.push({
+            ProductNameEng: data.ProductNameEng || "",
+            ProductNameChi: data.ProductNameChi || "",
+            Price: data.Price || "",
+            ProductDesc: data.ProductDesc || "",
+            ProductURL: data["Product URL"] || ""
+          });
+        });
+      }
+
+      console.log("📦 Label Data Ready:", labelData);
+      generateLabelPDF(labelData);
+    }
+
+    async function generateLabelPDF(labelData) {
+      const { PDFDocument, rgb, StandardFonts } = PDFLib;
+      const doc = await PDFDocument.create();
+      const font = await doc.embedFont(StandardFonts.Helvetica);
+      const pageWidth = 612; // 8.5 inch
+      const pageHeight = 792; // 11 inch
+      const labelWidth = 212.6; // 7.5 cm in pt
+      const labelHeight = 68; // 2.4 cm in pt
+
+      let x = 0;
+      let y = pageHeight;
+      let col = 0;
+      let row = 0;
+      let page = doc.addPage([pageWidth, pageHeight]);
+
+      for (let i = 0; i < labelData.length; i++) {
+        const item = labelData[i];
+        
+        if (row === 8) {
+          page = doc.addPage([pageWidth, pageHeight]);
+          row = 0;
+          y = pageHeight;
+        }
+
+        x = col === 0 ? 30 : 318; // 30pt margin on left, spacing to next column
+        y = pageHeight - (row * labelHeight) - 20;
+
+        page.drawText(item.ProductNameEng, { x, y, size: 10, font, color: rgb(0, 0, 0) });
+        page.drawText(item.ProductNameChi, { x, y: y - 12, size: 12, font, color: rgb(0, 0.2, 0.6) });
+        page.drawText("$" + item.Price, { x, y: y - 26, size: 10, font, color: rgb(0.1, 0.1, 0.1) });
+        page.drawText(item.ProductDesc, { x, y: y - 38, size: 8, font, color: rgb(0.2, 0.2, 0.2) });
+
+        if (item.ProductURL) {
+          const qrDataUrl = await QRCode.toDataURL(item.ProductURL);
+          const pngImageBytes = await fetch(qrDataUrl).then(res => res.arrayBuffer());
+          const qrImage = await doc.embedPng(pngImageBytes);
+          page.drawImage(qrImage, {
+            x: x + labelWidth - 40,
+            y: y - 48,
+            width: 30,
+            height: 30
+          });
+        }
+
+        col = col === 0 ? 1 : 0;
+        if (col === 0) row++;
+      }
+
+      const pdfBytes = await doc.save();
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "Truly_LabelSheet.pdf";
+      link.click();
     }
 
     loadData();
