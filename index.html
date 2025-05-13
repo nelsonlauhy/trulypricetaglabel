@@ -249,6 +249,46 @@
       const tagContainer = document.getElementById("printListTags");
       if ([...tagContainer.children].some(el => el.dataset.title === title)) return;
 
+      // 🔍 Find the row containing the matching title
+      const row = [...document.querySelectorAll("#productList tr")].find(tr =>
+        tr.cells[2]?.textContent.trim() === title
+      );
+      if (!row) return;
+
+      // 🆔 Get hidden Variant ID to identify document
+      const variantId = row.cells[1]?.textContent?.trim();
+
+      // 📝 Get inline-edit field values
+      const ProductNameEng = row.cells[4]?.textContent.trim();
+      const ProductNameChi = row.cells[5]?.textContent.trim();
+      const ProductDesc = row.cells[6]?.textContent.trim();
+
+      if (!variantId) {
+        alert("❗ Cannot find Variant ID for this row.");
+        return;
+      }
+
+      // 🔄 Update to Firebase
+      const docRef = db.collection("pricetaglabel").where("Variant ID", "==", variantId);
+      docRef.get().then(snapshot => {
+        if (snapshot.empty) {
+          alert("⚠️ Cannot update — record not found.");
+          return;
+        }
+        snapshot.forEach(doc => {
+          db.collection("pricetaglabel").doc(doc.id).update({
+            ProductNameEng,
+            ProductNameChi,
+            ProductDesc
+          }).then(() => {
+            console.log(`✅ Updated Firebase: ${title}`);
+          }).catch(err => {
+            console.error("❌ Firebase update failed:", err);
+          });
+        });
+      });
+
+      // ➕ Add tag
       const tag = document.createElement("span");
       tag.className = "tag";
       tag.dataset.title = title;
@@ -256,6 +296,7 @@
       tag.querySelector(".btn-close").onclick = () => tag.remove();
       tagContainer.appendChild(tag);
     }
+
 
     async function loadData() {
       const snapshot = await db.collection("pricetaglabel").get();
