@@ -68,6 +68,7 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script src="https://unpkg.com/@pdf-lib/fontkit/dist/fontkit.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 <body class="p-4 bg-light">
@@ -412,9 +413,12 @@
 
     async function generateLabelPDF(labelData) {
       const { PDFDocument, rgb } = PDFLib;
-      const doc = await PDFDocument.create();
 
-      // Load custom Chinese font (Noto Sans TC)
+      // Register fontkit for custom font support
+      const doc = await PDFDocument.create();
+      doc.registerFontkit(fontkit);
+
+      // Load custom Chinese font
       const fontBytes = await fetch("/fonts/NotoSansTC-Regular.ttf").then(res => res.arrayBuffer());
       const customFont = await doc.embedFont(fontBytes);
 
