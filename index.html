@@ -424,11 +424,9 @@
 
       const pageWidth = 612; // 8.5 inch
       const pageHeight = 792; // 11 inch
-      const labelWidth = 212.6; // 7.5 cm in pt
-      const labelHeight = 68; // 2.4 cm in pt
+      const labelWidth = 212.6; // 7.5 cm
+      const labelHeight = 68; // 2.4 cm
 
-      let x = 0;
-      let y = pageHeight;
       let col = 0;
       let row = 0;
       let page = doc.addPage([pageWidth, pageHeight]);
@@ -439,55 +437,75 @@
         if (row === 8) {
           page = doc.addPage([pageWidth, pageHeight]);
           row = 0;
-          y = pageHeight;
         }
 
-        x = col === 0 ? 30 : 318; // Left or right column
-        y = pageHeight - (row * labelHeight) - 20;
+        const marginX = 30;
+        const marginY = 20;
+        const x = col === 0 ? marginX : marginX + labelWidth + 20; // space between columns
+        const y = pageHeight - (row * labelHeight) - marginY;
 
-        page.drawText(item.ProductNameEng, {
-          x,
-          y,
-          size: 10,
-          font: customFont,
-          color: rgb(0, 0, 0)
-        });
-
-        page.drawText(item.ProductNameChi, {
-          x,
-          y: y - 12,
-          size: 12,
-          font: customFont,
-          color: rgb(0, 0.2, 0.6)
-        });
-
-        page.drawText("$" + item.Price, {
-          x,
-          y: y - 26,
-          size: 10,
-          font: customFont,
-          color: rgb(0.1, 0.1, 0.1)
-        });
-
-        page.drawText(item.ProductDesc, {
-          x,
-          y: y - 38,
-          size: 8,
-          font: customFont,
-          color: rgb(0.2, 0.2, 0.2)
-        });
-
+        // QR Code
         if (item.ProductURL) {
           const qrDataUrl = await QRCode.toDataURL(item.ProductURL);
           const pngImageBytes = await fetch(qrDataUrl).then(res => res.arrayBuffer());
           const qrImage = await doc.embedPng(pngImageBytes);
           page.drawImage(qrImage, {
-            x: x + labelWidth - 40,
-            y: y - 48,
-            width: 30,
-            height: 30
+            x: x,
+            y: y - 10,
+            width: 50,
+            height: 50
           });
         }
+
+        const textX = x + 60;
+        let textY = y + 40;
+
+        // ProductNameEng (bold)
+        page.drawText(item.ProductNameEng || "", {
+          x: textX,
+          y: textY,
+          size: 10,
+          font: customFont,
+          color: rgb(0, 0, 0)
+        });
+
+        // ProductNameChi
+        textY -= 14;
+        page.drawText(item.ProductNameChi || "", {
+          x: textX,
+          y: textY,
+          size: 10,
+          font: customFont,
+          color: rgb(0, 0.2, 0.6)
+        });
+
+        // Divider line
+        page.drawLine({
+          start: { x: textX, y: textY - 8 },
+          end: { x: textX + 120, y: textY - 8 },
+          thickness: 0.5,
+          color: rgb(0.6, 0.6, 0.6)
+        });
+
+        // ProductDesc and Price
+        textY -= 20;
+        page.drawText(item.ProductDesc || "", {
+          x: textX,
+          y: textY,
+          size: 9,
+          font: customFont,
+          color: rgb(0.2, 0.2, 0.2)
+        });
+
+        const priceText = "$" + (item.Price || "");
+        const priceWidth = customFont.widthOfTextAtSize(priceText, 10);
+        page.drawText(priceText + " CAD", {
+          x: textX + 120 - priceWidth,
+          y: textY,
+          size: 10,
+          font: customFont,
+          color: rgb(0, 0, 0)
+        });
 
         col = col === 0 ? 1 : 0;
         if (col === 0) row++;
@@ -500,7 +518,6 @@
       link.download = "Truly_LabelSheet.pdf";
       link.click();
     }
-
 
 
     loadData();
