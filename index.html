@@ -441,8 +441,8 @@
 
         const marginX = 30;
         const marginY = 20;
-        const x = col === 0 ? marginX : marginX + labelWidth + 20; // space between columns
-        const y = pageHeight - (row * labelHeight) - marginY - 20; // extra top buffer
+        const x = col === 0 ? marginX : marginX + labelWidth + 40; // space between columns
+        const y = pageHeight - (row * labelHeight) - marginY - 40; // extra top buffer
 
         // QR Code
         if (item.ProductURL) {
@@ -452,8 +452,8 @@
           page.drawImage(qrImage, {
             x: x,
             y: y - 10,
-            width: 50,
-            height: 50
+            width: 70,
+            height: 70
           });
         }
 
