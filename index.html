@@ -42,13 +42,17 @@
       background-color: #007bff;
       color: white;
       border-radius: 20px;
-      padding: 0.4rem 0.75rem;
+      padding: 0.2rem 0.6rem;
       margin: 0.25rem;
-      font-size: 0.95rem;
+      font-size: 0.75rem;
     }
     .tag .btn-close {
       font-size: 0.7rem;
       margin-left: 0.5rem;
+    }
+    td[contenteditable="true"] {
+      background-color: #fff8dc;
+      outline: none;
     }
   </style>
 </head>
@@ -166,9 +170,9 @@
           <td>${titleLink}</td>
           <td>${doc["Barcode"] || ""}</td>
           <td>${priceCAD}</td>
-          <td>${doc["ProductNameEng"] || ""}</td>
-          <td>${doc["ProductNameChi"] || ""}</td>
-          <td>${doc["ProductDesc"] || ""}</td>
+          <td contenteditable="true" data-field="ProductNameEng">${doc["ProductNameEng"] || ""}</td>
+          <td contenteditable="true" data-field="ProductNameChi">${doc["ProductNameChi"] || ""}</td>
+          <td contenteditable="true" data-field="ProductDesc">${doc["ProductDesc"] || ""}</td>
           <td><button class="btn btn-sm btn-outline-primary" onclick="addToPrintList('${titleText.replace(/'/g, "\\'")}')">Add to Print List</button></td>
         `;
         tbody.appendChild(row);
