@@ -105,6 +105,9 @@
     <div class="mt-4">
       <h5>🖨️ Print List</h5>
       <div id="printListTags" class="d-flex flex-wrap"></div>
+      <div class="mt-3">
+        <button id="submitBtn" class="btn btn-success d-none" onclick="submitPrintList()">Submit Print List</button>
+      </div>
     </div>
   </div>
 
@@ -250,20 +253,19 @@
     }
 
     function addToPrintList(title) {
-      const tagContainer = document.getElementById("printListTags");
-      if ([...tagContainer.children].some(el => el.dataset.title === title)) return;
-
       const row = [...document.querySelectorAll("#productList tr")].find(tr =>
         tr.cells[2]?.textContent.trim() === title
       );
       if (!row) return;
 
       const variantId = Number(row.cells[1]?.textContent?.trim());
+      const tagContainer = document.getElementById("printListTags");
+      if ([...tagContainer.children].some(el => el.dataset.variantId == variantId)) return;
+
       const ProductNameEng = row.cells[5]?.textContent.trim();
       const ProductNameChi = row.cells[6]?.textContent.trim();
       const ProductDesc = row.cells[7]?.textContent.trim();
 
-      // Firestore update
       db.collection("pricetaglabel")
         .where("Variant ID", "==", variantId)
         .get()
@@ -281,14 +283,19 @@
           });
         });
 
-      // Add tag
       const tag = document.createElement("span");
       tag.className = "tag";
-      tag.dataset.title = title;
+      tag.dataset.variantId = variantId;
       tag.innerHTML = `${title}<button type="button" class="btn-close btn-close-white ms-2" aria-label="Remove"></button>`;
-      tag.querySelector(".btn-close").onclick = () => tag.remove();
+      tag.querySelector(".btn-close").onclick = () => {
+        tag.remove();
+        toggleSubmitButton();
+      };
       tagContainer.appendChild(tag);
+
+      toggleSubmitButton();
     }
+
 
     async function loadData() {
       const snapshot = await db.collection("pricetaglabel").get();
@@ -347,7 +354,18 @@
       button.textContent = "🈶";
     }
 
+    function toggleSubmitButton() {
+      const tagContainer = document.getElementById("printListTags");
+      const submitBtn = document.getElementById("submitBtn");
+      submitBtn.classList.toggle("d-none", tagContainer.children.length === 0);
+    }
 
+    function submitPrintList() {
+      const tagContainer = document.getElementById("printListTags");
+      const variantIds = [...tagContainer.children].map(tag => tag.dataset.variantId);
+      console.log("🖨️ Ready to generate PDF for Variant IDs:", variantIds);
+      // TODO: Implement PDF generation logic
+    }
 
     loadData();
   </script>
