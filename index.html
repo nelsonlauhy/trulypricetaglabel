@@ -461,7 +461,7 @@
         let textY = y + 40;
 
         // ProductNameEng (bold)
-        page.drawText(item.ProductNameEng || "", {
+        page.drawText(item.ProductNameEng, {
           x: textX,
           y: textY,
           size: 10,
@@ -471,7 +471,7 @@
 
         // ProductNameChi
         textY -= 14;
-        page.drawText(item.ProductNameChi || "", {
+        page.drawText(item.ProductNameChi, {
           x: textX,
           y: textY,
           size: 10,
@@ -498,7 +498,7 @@
         });
 
         const priceText = "$" + (item.Price || "");
-        const priceWidth = customFont.widthOfTextAtSize(priceText, 10);
+        const priceWidth = customFont.widthOfTextAtSize(priceText + " CAD", 10);
         page.drawText(priceText + " CAD", {
           x: textX + 120 - priceWidth,
           y: textY,
@@ -513,12 +513,45 @@
 
       const pdfBytes = await doc.save();
       const blob = new Blob([pdfBytes], { type: "application/pdf" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "Truly_LabelSheet.pdf";
-      link.click();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Create and show modal with iframe preview
+      let modal = document.getElementById("pdfModal");
+      if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "pdfModal";
+        modal.className = "modal fade";
+        modal.tabIndex = -1;
+        modal.innerHTML = `
+          <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">PDF Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <iframe id="pdfIframe" src="${blobUrl}" style="width: 100%; height: 80vh; border: none;"></iframe>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary" onclick="printPDF()">Print</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      } else {
+        document.getElementById("pdfIframe").src = blobUrl;
+      }
+
+      const bsModal = new bootstrap.Modal(modal);
+      bsModal.show();
     }
 
+    function printPDF() {
+      const iframe = document.getElementById("pdfIframe");
+      if (iframe) iframe.contentWindow.print();
+    }
 
     loadData();
   </script>
