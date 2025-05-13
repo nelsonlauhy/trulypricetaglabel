@@ -411,9 +411,13 @@
     }
 
     async function generateLabelPDF(labelData) {
-      const { PDFDocument, rgb, StandardFonts } = PDFLib;
+      const { PDFDocument, rgb } = PDFLib;
       const doc = await PDFDocument.create();
-      const font = await doc.embedFont(StandardFonts.Helvetica);
+
+      // Load custom Chinese font (Noto Sans TC)
+      const fontBytes = await fetch("/fonts/NotoSansTC-Regular.ttf").then(res => res.arrayBuffer());
+      const customFont = await doc.embedFont(fontBytes);
+
       const pageWidth = 612; // 8.5 inch
       const pageHeight = 792; // 11 inch
       const labelWidth = 212.6; // 7.5 cm in pt
@@ -427,20 +431,47 @@
 
       for (let i = 0; i < labelData.length; i++) {
         const item = labelData[i];
-        
+
         if (row === 8) {
           page = doc.addPage([pageWidth, pageHeight]);
           row = 0;
           y = pageHeight;
         }
 
-        x = col === 0 ? 30 : 318; // 30pt margin on left, spacing to next column
+        x = col === 0 ? 30 : 318; // Left or right column
         y = pageHeight - (row * labelHeight) - 20;
 
-        page.drawText(item.ProductNameEng, { x, y, size: 10, font, color: rgb(0, 0, 0) });
-        page.drawText(item.ProductNameChi, { x, y: y - 12, size: 12, font, color: rgb(0, 0.2, 0.6) });
-        page.drawText("$" + item.Price, { x, y: y - 26, size: 10, font, color: rgb(0.1, 0.1, 0.1) });
-        page.drawText(item.ProductDesc, { x, y: y - 38, size: 8, font, color: rgb(0.2, 0.2, 0.2) });
+        page.drawText(item.ProductNameEng, {
+          x,
+          y,
+          size: 10,
+          font: customFont,
+          color: rgb(0, 0, 0)
+        });
+
+        page.drawText(item.ProductNameChi, {
+          x,
+          y: y - 12,
+          size: 12,
+          font: customFont,
+          color: rgb(0, 0.2, 0.6)
+        });
+
+        page.drawText("$" + item.Price, {
+          x,
+          y: y - 26,
+          size: 10,
+          font: customFont,
+          color: rgb(0.1, 0.1, 0.1)
+        });
+
+        page.drawText(item.ProductDesc, {
+          x,
+          y: y - 38,
+          size: 8,
+          font: customFont,
+          color: rgb(0.2, 0.2, 0.2)
+        });
 
         if (item.ProductURL) {
           const qrDataUrl = await QRCode.toDataURL(item.ProductURL);
@@ -465,6 +496,7 @@
       link.download = "Truly_LabelSheet.pdf";
       link.click();
     }
+
 
     loadData();
   </script>
