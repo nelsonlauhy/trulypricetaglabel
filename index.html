@@ -36,6 +36,20 @@
       width: 100%;
       height: auto;
     }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      background-color: #007bff;
+      color: white;
+      border-radius: 20px;
+      padding: 0.4rem 0.75rem;
+      margin: 0.25rem;
+      font-size: 0.95rem;
+    }
+    .tag .btn-close {
+      font-size: 0.7rem;
+      margin-left: 0.5rem;
+    }
   </style>
 </head>
 <body class="p-4 bg-light">
@@ -73,6 +87,12 @@
     <nav>
       <ul class="pagination justify-content-center" id="pagination"></ul>
     </nav>
+
+    <!-- Print List Tag Container -->
+    <div class="mt-4">
+      <h5>🖨️ Print List</h5>
+      <div id="printListTags" class="d-flex flex-wrap"></div>
+    </div>
   </div>
 
   <!-- Image Modal -->
@@ -136,9 +156,10 @@
           ? new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(price)
           : "";
 
+        const titleText = doc["Title"] || "";
         const titleLink = doc["Product URL"]
-          ? `<a href="${doc["Product URL"]}" target="_blank">${doc["Title"] || ""}</a>`
-          : (doc["Title"] || "");
+          ? `<a href="${doc["Product URL"]}" target="_blank">${titleText}</a>`
+          : titleText;
 
         row.innerHTML = `
           <td>${img}</td>
@@ -148,7 +169,7 @@
           <td>${doc["ProductNameEng"] || ""}</td>
           <td>${doc["ProductNameChi"] || ""}</td>
           <td>${doc["ProductDesc"] || ""}</td>
-          <td><button class="btn btn-sm btn-outline-primary" onclick="addToPrintList('${doc["Product ID"]}')">Add to Print List</button></td>
+          <td><button class="btn btn-sm btn-outline-primary" onclick="addToPrintList('${titleText.replace(/'/g, "\\'")}')">Add to Print List</button></td>
         `;
         tbody.appendChild(row);
       });
@@ -208,9 +229,16 @@
       renderList(filteredData);
     }
 
-    function addToPrintList(productId) {
-      alert(`🖨️ Product ${productId} added to print list (function placeholder).`);
-      // TODO: Implement actual print list logic
+    function addToPrintList(title) {
+      const tagContainer = document.getElementById("printListTags");
+      if ([...tagContainer.children].some(el => el.dataset.title === title)) return;
+
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.dataset.title = title;
+      tag.innerHTML = `${title}<button type="button" class="btn-close btn-close-white ms-2" aria-label="Remove"></button>`;
+      tag.querySelector(".btn-close").onclick = () => tag.remove();
+      tagContainer.appendChild(tag);
     }
 
     async function loadData() {
