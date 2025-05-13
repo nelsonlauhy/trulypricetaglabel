@@ -318,7 +318,7 @@
       button.textContent = "⏳";
 
       try {
-        const res = await fetch("https://translate.argosopentech.com/translate", {
+        const res = await fetch("https://translation.googleapis.com/language/translate/v2?key=AIzaSyDbjjw4ZGwYCFNAxEjqmBTG62fQ7TsiatQ", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -330,20 +330,23 @@
         });
 
         const data = await res.json();
-        if (data.translatedText) {
+        if (data && data.data && data.data.translations && data.data.translations[0]) {
+          const translatedText = data.data.translations[0].translatedText;
           const editableCell = row.querySelector('[data-field="ProductNameChi"]');
-          editableCell.textContent = data.translatedText;
+          editableCell.textContent = translatedText;
         } else {
           alert("❌ Translation failed.");
+          console.log(data);
         }
       } catch (err) {
-        alert("🚫 Error calling translation API.");
+        alert("🚫 Error calling Google Translate API.");
         console.error(err);
       }
 
       button.disabled = false;
       button.textContent = "🈶";
     }
+
 
     loadData();
   </script>
