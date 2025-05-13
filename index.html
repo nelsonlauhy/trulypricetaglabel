@@ -464,7 +464,7 @@
         page.drawText(item.ProductNameEng, {
           x: textX,
           y: textY,
-          size: 10,
+          size: 8,
           font: customFont,
           color: rgb(0, 0, 0)
         });
@@ -474,7 +474,7 @@
         page.drawText(item.ProductNameChi, {
           x: textX,
           y: textY,
-          size: 10,
+          size: 8,
           font: customFont,
           color: rgb(0, 0.2, 0.6)
         });
@@ -492,7 +492,7 @@
         page.drawText(item.ProductDesc || "", {
           x: textX,
           y: textY,
-          size: 9,
+          size: 8,
           font: customFont,
           color: rgb(0.2, 0.2, 0.2)
         });
@@ -502,7 +502,7 @@
         page.drawText(priceText + " CAD", {
           x: textX + 120 - priceWidth,
           y: textY,
-          size: 10,
+          size: 9,
           font: customFont,
           color: rgb(0, 0, 0)
         });
@@ -530,7 +530,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body">
-                <iframe id="pdfIframe" src="${blobUrl}" style="width: 100%; height: 80vh; border: none;"></iframe>
+                <iframe id="pdfIframe" src="${blobUrl}" style="width: 100%; height: 70vh; border: none;"></iframe>
               </div>
               <div class="modal-footer">
                 <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
