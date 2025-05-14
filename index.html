@@ -420,7 +420,7 @@
       const doc = await PDFDocument.create();
       doc.registerFontkit(fontkit);
 
-      // Load custom Chinese font
+      // Load fonts
       const fontBytes = await fetch("/fonts/NotoSansTC-Regular.ttf").then(res => res.arrayBuffer());
       const customFont = await doc.embedFont(fontBytes);
       const arialFont = await doc.embedFont(StandardFonts.Helvetica);
@@ -443,8 +443,8 @@
         }
 
         const marginX = 30;
-        const marginY = 40; // extra top margin to avoid clipping
-        const x = col === 0 ? marginX : marginX + labelWidth + 80; // space between columns
+        const marginY = 40;
+        const x = col === 0 ? marginX : marginX + labelWidth + 80;
         const y = pageHeight - (row * labelHeight) - marginY - 100;
 
         // Draw label border
@@ -473,18 +473,35 @@
         const textX = x + 60;
         let textY = y + labelHeight - 8;
 
-        // ProductNameEng (bold)
-        page.drawText(item.ProductNameEng, {
-          x: textX,
-          y: textY,
-          size: 8,
-          font: customFont,
-          color: rgb(0, 0, 0)
+        // ProductNameEng (wrap into max 2 lines)
+        const engText = item.ProductNameEng || "";
+        const maxWidth = 120;
+        const lines = [];
+        let remaining = engText;
+        while (lines.length < 2 && remaining.length > 0) {
+          let i = remaining.length;
+          while (i > 0 && customFont.widthOfTextAtSize(remaining.slice(0, i), 8) > maxWidth) {
+            i--;
+          }
+          if (i === 0) break;
+          lines.push(remaining.slice(0, i));
+          remaining = remaining.slice(i).trim();
+        }
+
+        if (lines.length === 2) textY -= 4;
+        lines.forEach((line, idx) => {
+          page.drawText(line, {
+            x: textX,
+            y: textY - (idx * 10),
+            size: 8,
+            font: customFont,
+            color: rgb(0, 0, 0)
+          });
         });
 
-        // ProductNameChi
-        textY -= 14;
-        page.drawText(item.ProductNameChi, {
+        // Adjust for Chinese name
+        textY = textY - (lines.length * 10) - 2;
+        page.drawText(item.ProductNameChi || "", {
           x: textX,
           y: textY,
           size: 8,
@@ -528,7 +545,7 @@
       const blob = new Blob([pdfBytes], { type: "application/pdf" });
       const blobUrl = URL.createObjectURL(blob);
 
-      // Create and show modal with iframe preview
+      // Show PDF in modal
       let modal = document.getElementById("pdfModal");
       if (!modal) {
         modal = document.createElement("div");
@@ -565,8 +582,6 @@
       const iframe = document.getElementById("pdfIframe");
       if (iframe) iframe.contentWindow.print();
     }
-
-
 
     loadData();
   </script>
