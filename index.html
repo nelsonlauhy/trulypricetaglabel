@@ -480,16 +480,16 @@
           const pngImageBytes = await fetch(qrDataUrl).then(res => res.arrayBuffer());
           const qrImage = await doc.embedPng(pngImageBytes);
           page.drawImage(qrImage, {
-            x: x + 4,
-            y: y + 12,
-            width: 56,
-            height: 56
+            x: x + 5,
+            y: y + 10,
+            width: 55,
+            height: 55
           });
         }
 
         const textX = x + 60;
         const maxWidth = 145;
-        let textY = y + 10;
+        let textY = y + 6;
 
         page.drawText(item.ProductDesc || "", {
           x: textX,
