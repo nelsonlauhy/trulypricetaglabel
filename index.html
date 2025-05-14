@@ -493,7 +493,7 @@
         const textX = x + 60;
         let textY = y + labelHeight - 8;
 
-        const maxWidth = 160;
+        const maxWidth = 145;
         const lines = wrapTextByWords(item.ProductNameEng || '', maxWidth, customFont, 8, 2);
         lines.forEach((line, idx) => {
           page.drawText(line, {
@@ -516,7 +516,7 @@
 
         page.drawLine({
           start: { x: textX, y: textY - 8 },
-          end: { x: textX + 160, y: textY - 8 },
+          end: { x: textX + 145, y: textY - 8 },
           thickness: 0.5,
           color: rgb(0.6, 0.6, 0.6)
         });
@@ -533,7 +533,7 @@
         const priceText = "$" + (item.Price || "");
         const priceWidth = arialFont.widthOfTextAtSize(priceText + " CAD", 10);
         page.drawText(priceText + " CAD", {
-          x: textX + 160 - priceWidth,
+          x: textX + 145 - priceWidth,
           y: textY,
           size: 10,
           font: arialFont,
