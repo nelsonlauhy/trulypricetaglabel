@@ -470,13 +470,13 @@
         }
 
         const textX = x + 60;
-        let textY = y + labelHeight - 8;
+        let textY = y + labelHeight - 8 + 10;
 
         // ProductNameEng (bold)
         page.drawText(item.ProductNameEng, {
           x: textX,
           y: textY,
-          size: 10,
+          size: 8,
           font: customFont,
           color: rgb(0, 0, 0)
         });
@@ -486,7 +486,7 @@
         page.drawText(item.ProductNameChi, {
           x: textX,
           y: textY,
-          size: 10,
+          size: 8,
           font: customFont,
           color: rgb(0, 0.2, 0.6)
         });
@@ -494,7 +494,7 @@
         // Divider line
         page.drawLine({
           start: { x: textX, y: textY - 8 },
-          end: { x: textX + 120, y: textY - 8 },
+          end: { x: textX + 140, y: textY - 8 },
           thickness: 0.5,
           color: rgb(0.6, 0.6, 0.6)
         });
@@ -504,7 +504,7 @@
         page.drawText(item.ProductDesc || "", {
           x: textX,
           y: textY,
-          size: 9,
+          size: 8,
           font: customFont,
           color: rgb(0.2, 0.2, 0.2)
         });
@@ -514,7 +514,7 @@
         page.drawText(priceText + " CAD", {
           x: textX + 120 - priceWidth,
           y: textY,
-          size: 10,
+          size: 8,
           font: customFont,
           color: rgb(0, 0, 0)
         });
