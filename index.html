@@ -418,7 +418,6 @@
       const doc = await PDFDocument.create();
       doc.registerFontkit(fontkit);
 
-      // Load fonts
       const fontBytes = await fetch("/fonts/NotoSansTC-Regular.ttf").then(res => res.arrayBuffer());
       const customFont = await doc.embedFont(fontBytes);
       const arialFont = await doc.embedFont(StandardFonts.Helvetica);
@@ -467,7 +466,6 @@
         const x = col === 0 ? marginX : marginX + labelWidth + 80;
         const y = pageHeight - (row * labelHeight) - marginY - 100;
 
-        // Draw label border
         page.drawRectangle({
           x: x,
           y: y,
@@ -477,7 +475,6 @@
           borderWidth: 0.5
         });
 
-        // QR Code
         if (item.ProductURL) {
           const qrDataUrl = await QRCode.toDataURL(item.ProductURL);
           const pngImageBytes = await fetch(qrDataUrl).then(res => res.arrayBuffer());
@@ -492,9 +489,8 @@
 
         const textX = x + 60;
         const maxWidth = 145;
-        let textY = y + 12; // Bottom padding for price line
+        let textY = y + 12;
 
-        // ProductDesc
         page.drawText(item.ProductDesc || "", {
           x: textX,
           y: textY,
@@ -503,7 +499,6 @@
           color: rgb(0.2, 0.2, 0.2)
         });
 
-        // Price
         const priceText = "$" + (item.Price || "");
         const priceWidth = arialFont.widthOfTextAtSize(priceText + " CAD", 10);
         page.drawText(priceText + " CAD", {
@@ -516,7 +511,6 @@
 
         textY += 18;
 
-        // Divider line
         page.drawLine({
           start: { x: textX, y: textY },
           end: { x: textX + maxWidth, y: textY },
@@ -524,28 +518,26 @@
           color: rgb(0.6, 0.6, 0.6)
         });
 
-        // ProductNameChi
         textY += 10;
+        const lines = wrapTextByWords(item.ProductNameEng || '', maxWidth, customFont, 8, 2);
+        const paddedLines = lines.length === 1 ? [lines[0], ''] : lines;
+        paddedLines.forEach((line, idx) => {
+          page.drawText(line, {
+            x: textX,
+            y: textY + ((1 - idx) * 8),
+            size: 8,
+            font: customFont,
+            color: rgb(0, 0, 0)
+          });
+        });
+
+        textY += 18;
         page.drawText(item.ProductNameChi || "", {
           x: textX,
           y: textY,
           size: 8,
           font: customFont,
           color: rgb(0, 0.2, 0.6)
-        });
-
-        // ProductNameEng (always 2 lines)
-        textY += 14;
-        const lines = wrapTextByWords(item.ProductNameEng || '', maxWidth, customFont, 8, 2);
-        const paddedLines = lines.length === 1 ? [lines[0], ''] : lines;
-        paddedLines.reverse().forEach((line, idx) => {
-          page.drawText(line, {
-            x: textX,
-            y: textY - (idx * 10),
-            size: 8,
-            font: customFont,
-            color: rgb(0, 0, 0)
-          });
         });
 
         col = col === 0 ? 1 : 0;
@@ -592,6 +584,7 @@
       const iframe = document.getElementById("pdfIframe");
       if (iframe) iframe.contentWindow.print();
     }
+
 
 
     loadData();
