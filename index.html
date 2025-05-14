@@ -442,9 +442,19 @@
         }
 
         const marginX = 30;
-        const marginY = 20;
+        const marginY = 40; // extra top margin to avoid clipping
         const x = col === 0 ? marginX : marginX + labelWidth + 80; // space between columns
-        const y = pageHeight - (row * labelHeight) - marginY - 100; // extra top buffer
+        const y = pageHeight - (row * labelHeight) - marginY - 100;
+
+        // Draw label border
+        page.drawRectangle({
+          x: x,
+          y: y,
+          width: labelWidth,
+          height: labelHeight,
+          borderColor: rgb(0.8, 0.8, 0.8),
+          borderWidth: 0.5
+        });
 
         // QR Code
         if (item.ProductURL) {
@@ -452,21 +462,21 @@
           const pngImageBytes = await fetch(qrDataUrl).then(res => res.arrayBuffer());
           const qrImage = await doc.embedPng(pngImageBytes);
           page.drawImage(qrImage, {
-            x: x,
-            y: y - 10,
-            width: 70,
-            height: 70
+            x: x + 5,
+            y: y + 10,
+            width: 50,
+            height: 50
           });
         }
 
-        const textX = x + 80;
-        let textY = y + 40;
+        const textX = x + 60;
+        let textY = y + labelHeight - 8;
 
         // ProductNameEng (bold)
         page.drawText(item.ProductNameEng, {
           x: textX,
           y: textY,
-          size: 8,
+          size: 10,
           font: customFont,
           color: rgb(0, 0, 0)
         });
@@ -476,7 +486,7 @@
         page.drawText(item.ProductNameChi, {
           x: textX,
           y: textY,
-          size: 8,
+          size: 10,
           font: customFont,
           color: rgb(0, 0.2, 0.6)
         });
@@ -494,7 +504,7 @@
         page.drawText(item.ProductDesc || "", {
           x: textX,
           y: textY,
-          size: 8,
+          size: 9,
           font: customFont,
           color: rgb(0.2, 0.2, 0.2)
         });
@@ -504,7 +514,7 @@
         page.drawText(priceText + " CAD", {
           x: textX + 120 - priceWidth,
           y: textY,
-          size: 9,
+          size: 10,
           font: customFont,
           color: rgb(0, 0, 0)
         });
@@ -532,7 +542,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body">
-                <iframe id="pdfIframe" src="${blobUrl}" style="width: 100%; height: 70vh; border: none;"></iframe>
+                <iframe id="pdfIframe" src="${blobUrl}" style="width: 100%; height: 80vh; border: none;"></iframe>
               </div>
               <div class="modal-footer">
                 <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -554,6 +564,7 @@
       const iframe = document.getElementById("pdfIframe");
       if (iframe) iframe.contentWindow.print();
     }
+
 
     loadData();
   </script>
