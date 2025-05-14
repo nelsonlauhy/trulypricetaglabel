@@ -414,7 +414,7 @@
     }
 
     async function generateLabelPDF(labelData) {
-      const { PDFDocument, rgb } = PDFLib;
+      const { PDFDocument, rgb, StandardFonts } = PDFLib;
 
       // Register fontkit for custom font support
       const doc = await PDFDocument.create();
@@ -423,6 +423,7 @@
       // Load custom Chinese font
       const fontBytes = await fetch("/fonts/NotoSansTC-Regular.ttf").then(res => res.arrayBuffer());
       const customFont = await doc.embedFont(fontBytes);
+      const arialFont = await doc.embedFont(StandardFonts.Helvetica);
 
       const pageWidth = 612; // 8.5 inch
       const pageHeight = 792; // 11 inch
@@ -470,13 +471,13 @@
         }
 
         const textX = x + 60;
-        let textY = y + labelHeight - 8 - 10;
+        let textY = y + labelHeight - 8;
 
         // ProductNameEng (bold)
         page.drawText(item.ProductNameEng, {
           x: textX,
           y: textY,
-          size: 6,
+          size: 10,
           font: customFont,
           color: rgb(0, 0, 0)
         });
@@ -486,7 +487,7 @@
         page.drawText(item.ProductNameChi, {
           x: textX,
           y: textY,
-          size: 6,
+          size: 10,
           font: customFont,
           color: rgb(0, 0.2, 0.6)
         });
@@ -494,28 +495,28 @@
         // Divider line
         page.drawLine({
           start: { x: textX, y: textY - 8 },
-          end: { x: textX + 140, y: textY - 8 },
+          end: { x: textX + 120, y: textY - 8 },
           thickness: 0.5,
           color: rgb(0.6, 0.6, 0.6)
         });
 
-        // ProductDesc and Price
+        // ProductDesc and Price (Arial)
         textY -= 20;
         page.drawText(item.ProductDesc || "", {
           x: textX,
           y: textY,
-          size: 8,
-          font: customFont,
+          size: 9,
+          font: arialFont,
           color: rgb(0.2, 0.2, 0.2)
         });
 
         const priceText = "$" + (item.Price || "");
-        const priceWidth = customFont.widthOfTextAtSize(priceText + " CAD", 10);
+        const priceWidth = arialFont.widthOfTextAtSize(priceText + " CAD", 10);
         page.drawText(priceText + " CAD", {
           x: textX + 120 - priceWidth,
           y: textY,
-          size: 8,
-          font: customFont,
+          size: 10,
+          font: arialFont,
           color: rgb(0, 0, 0)
         });
 
@@ -564,6 +565,7 @@
       const iframe = document.getElementById("pdfIframe");
       if (iframe) iframe.contentWindow.print();
     }
+
 
 
     loadData();
