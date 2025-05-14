@@ -519,15 +519,6 @@
         });
 
         textY += 10;
-        page.drawText(item.ProductNameChi || "", {
-          x: textX,
-          y: textY,
-          size: 8,
-          font: customFont,
-          color: rgb(0, 0.2, 0.6)
-        });
-
-        textY += 12;
         const lines = wrapTextByWords(item.ProductNameEng || '', maxWidth, customFont, 8, 2);
         const paddedLines = lines.length === 1 ? [lines[0], ''] : lines;
         paddedLines.reverse().forEach((line, idx) => {
@@ -538,6 +529,15 @@
             font: customFont,
             color: rgb(0, 0, 0)
           });
+        });
+
+        textY += 12;
+        page.drawText(item.ProductNameChi || "", {
+          x: textX,
+          y: textY,
+          size: 8,
+          font: customFont,
+          color: rgb(0, 0.2, 0.6)
         });
 
         col = col === 0 ? 1 : 0;
