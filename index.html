@@ -415,8 +415,6 @@
 
     async function generateLabelPDF(labelData) {
       const { PDFDocument, rgb, StandardFonts } = PDFLib;
-
-      // Register fontkit for custom font support
       const doc = await PDFDocument.create();
       doc.registerFontkit(fontkit);
 
@@ -469,6 +467,7 @@
         const x = col === 0 ? marginX : marginX + labelWidth + 80;
         const y = pageHeight - (row * labelHeight) - marginY - 100;
 
+        // Draw label border
         page.drawRectangle({
           x: x,
           y: y,
@@ -478,6 +477,7 @@
           borderWidth: 0.5
         });
 
+        // QR Code
         if (item.ProductURL) {
           const qrDataUrl = await QRCode.toDataURL(item.ProductURL);
           const pngImageBytes = await fetch(qrDataUrl).then(res => res.arrayBuffer());
@@ -491,41 +491,10 @@
         }
 
         const textX = x + 60;
-        let textY = y + labelHeight - 8;
-
         const maxWidth = 145;
-        const lines = wrapTextByWords(item.ProductNameEng || '', maxWidth, customFont, 8, 2);
+        let textY = y + 12; // Bottom padding for price line
 
-        // Always reserve 2 lines
-        const paddedLines = lines.length === 1 ? [lines[0], ''] : lines;
-
-        paddedLines.forEach((line, idx) => {
-          page.drawText(line, {
-            x: textX,
-            y: textY - (idx * 10),
-            size: 8,
-            font: customFont,
-            color: rgb(0, 0, 0)
-          });
-        });
-
-        textY -= (lines.length * 10) + 2;
-        page.drawText(item.ProductNameChi || "", {
-          x: textX,
-          y: textY,
-          size: 8,
-          font: customFont,
-          color: rgb(0, 0.2, 0.6)
-        });
-
-        page.drawLine({
-          start: { x: textX, y: textY - 8 },
-          end: { x: textX + 145, y: textY - 8 },
-          thickness: 0.5,
-          color: rgb(0.6, 0.6, 0.6)
-        });
-
-        textY -= 20;
+        // ProductDesc
         page.drawText(item.ProductDesc || "", {
           x: textX,
           y: textY,
@@ -534,14 +503,49 @@
           color: rgb(0.2, 0.2, 0.2)
         });
 
+        // Price
         const priceText = "$" + (item.Price || "");
         const priceWidth = arialFont.widthOfTextAtSize(priceText + " CAD", 10);
         page.drawText(priceText + " CAD", {
-          x: textX + 145 - priceWidth,
+          x: textX + maxWidth - priceWidth,
           y: textY,
           size: 10,
           font: arialFont,
           color: rgb(0, 0, 0)
+        });
+
+        textY += 18;
+
+        // Divider line
+        page.drawLine({
+          start: { x: textX, y: textY },
+          end: { x: textX + maxWidth, y: textY },
+          thickness: 0.5,
+          color: rgb(0.6, 0.6, 0.6)
+        });
+
+        // ProductNameChi
+        textY += 10;
+        page.drawText(item.ProductNameChi || "", {
+          x: textX,
+          y: textY,
+          size: 8,
+          font: customFont,
+          color: rgb(0, 0.2, 0.6)
+        });
+
+        // ProductNameEng (always 2 lines)
+        textY += 14;
+        const lines = wrapTextByWords(item.ProductNameEng || '', maxWidth, customFont, 8, 2);
+        const paddedLines = lines.length === 1 ? [lines[0], ''] : lines;
+        paddedLines.reverse().forEach((line, idx) => {
+          page.drawText(line, {
+            x: textX,
+            y: textY - (idx * 10),
+            size: 8,
+            font: customFont,
+            color: rgb(0, 0, 0)
+          });
         });
 
         col = col === 0 ? 1 : 0;
