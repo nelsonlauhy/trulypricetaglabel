@@ -189,11 +189,9 @@
           <td>
             <div class="d-flex align-items-center">
               <div contenteditable="true" data-field="ProductNameChi" class="flex-grow-1">${doc["ProductNameChi"] || ""}</div>
-              <button class="btn btn-sm btn-light ms-2 py-0 px-1" title="Translate" onclick="translateToChinese(this)">🈶</button>
+              <button class="btn btn-sm btn-light ms-2 py-0 px-1" title="Translate" onclick="translateToChinese(this)">🌐</button>
             </div>
           </td>
-
-
           <td contenteditable="true" data-field="ProductDesc">${doc["ProductDesc"] || ""}</td>
           <td><button class="btn btn-sm btn-outline-primary" onclick="addToPrintList('${titleText.replace(/'/g, "\\'")}')">Add to Print List</button></td>
         `;
@@ -370,7 +368,7 @@
       }
 
       button.disabled = false;
-      button.textContent = "🈶";
+      button.textContent = "🌐";
     }
 
     function toggleSubmitButton() {
