@@ -93,8 +93,8 @@
             <th>Title</th>
             <th class="d-none">Barcode</th>
             <th>Price (CAD)</th>
-            <th>Price Tag Line 1</th>
-            <th>Price Tag Line 2</th>
+            <th>Price Tag Eng</th>
+            <th>Price Tag Chi</th>
             <th>ProductDesc</th>
             <th>Action</th>
           </tr>
@@ -489,7 +489,7 @@
 
         const textX = x + 60;
         const maxWidth = 145;
-        let textY = y + 12;
+        let textY = y + 10;
 
         page.drawText(item.ProductDesc || "", {
           x: textX,
