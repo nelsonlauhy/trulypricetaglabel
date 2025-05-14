@@ -495,7 +495,11 @@
 
         const maxWidth = 145;
         const lines = wrapTextByWords(item.ProductNameEng || '', maxWidth, customFont, 8, 2);
-        lines.forEach((line, idx) => {
+
+        // Always reserve 2 lines
+        const paddedLines = lines.length === 1 ? [lines[0], ''] : lines;
+
+        paddedLines.forEach((line, idx) => {
           page.drawText(line, {
             x: textX,
             y: textY - (idx * 10),
