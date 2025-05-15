@@ -456,7 +456,7 @@
       for (let i = 0; i < labelData.length; i++) {
         const item = labelData[i];
 
-        if (row === 8) {
+        if (row === 10) {
           page = doc.addPage([pageWidth, pageHeight]);
           row = 0;
         }
@@ -464,7 +464,7 @@
         const marginX = 30;
         const marginY = 40;
         const x = col === 0 ? marginX : marginX + labelWidth + 80;
-        const y = pageHeight - (row * labelHeight) - marginY - 100;
+        const y = pageHeight - (row * labelHeight) - marginY - 60;
 
         page.drawRectangle({
           x: x,
@@ -558,7 +558,7 @@
           <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
               <div class="modal-header">
-                <h5 class="modal-title">PDF Preview</h5>
+                <h5 class="modal-title">Label Printout Preview</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body">
