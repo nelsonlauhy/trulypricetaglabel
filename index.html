@@ -480,8 +480,8 @@
           const pngImageBytes = await fetch(qrDataUrl).then(res => res.arrayBuffer());
           const qrImage = await doc.embedPng(pngImageBytes);
           page.drawImage(qrImage, {
-            x: x + 4,
-            y: y + 6,
+            x: x + 0,
+            y: y + 4,
             width: 60,
             height: 60
           });
