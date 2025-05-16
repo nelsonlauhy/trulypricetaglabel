@@ -39,6 +39,10 @@
     .product-img {
       height: 100px;
       object-fit: contain;
+      margin-top: 0.5rem;
+    }
+    .card-body {
+      text-align: center;
     }
   </style>
 </head>
@@ -89,6 +93,8 @@
         const col = document.createElement("div");
         col.className = "col-sm-6 col-md-4 col-lg-3 mb-4";
 
+        const price = doc["Price"] ? new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(doc["Price"]) : "";
+
         col.innerHTML = `
           <div class="card h-100 shadow-sm">
             ${doc["Image URL"] ? `<img src="${doc["Image URL"]}" class="card-img-top product-img" alt="...">` : ""}
@@ -96,6 +102,7 @@
               <h5 class="card-title">${doc["Title"] || ""}</h5>
               <h6 class="card-subtitle mb-2">${doc["ProductNameChi"] || ""}</h6>
               <p class="card-text small">${doc["ProductDesc"] || ""}</p>
+              ${price ? `<p class="card-text fw-bold">${price}</p>` : ""}
               ${doc["Product URL"] ? `<a href="${doc["Product URL"]}" target="_blank" class="btn btn-sm btn-outline-primary">View Product</a>` : ""}
             </div>
           </div>
@@ -120,7 +127,7 @@
         );
       }
 
-      renderCards(filteredData); 
+      renderCards(filteredData);
     }
 
     async function loadData() {
