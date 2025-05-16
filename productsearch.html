@@ -70,7 +70,10 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Scan Barcode / QR</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopScan()"></button>
+          <div class="d-flex align-items-center">
+            <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="switchCamera()">🔁 Switch Camera</button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopScan()"></button>
+          </div>
         </div>
         <div class="modal-body">
           <video id="qr-video" style="width: 100%; height: auto;"></video>
@@ -95,6 +98,9 @@
 
     let allData = [];
     let codeReader;
+    let videoDevices = [];
+    let selectedDeviceId = null;
+    let currentDeviceIndex = 0;
 
     async function loadData() {
       const snapshot = await db.collection("pricetaglabel").get();
@@ -161,10 +167,15 @@
 
       const videoElement = document.getElementById("qr-video");
 
-      // ✅ 使用 instance method 取得裝置清單
       codeReader = new ZXing.BrowserMultiFormatReader();
-      const devices = await codeReader.listVideoInputDevices();
-      const selectedDeviceId = devices[0]?.deviceId;
+      videoDevices = await codeReader.listVideoInputDevices();
+
+      // 預設為後鏡頭
+      if (selectedDeviceId === null) {
+        const backCam = videoDevices.find(d => /back|rear|environment/i.test(d.label));
+        selectedDeviceId = backCam?.deviceId || videoDevices[0]?.deviceId;
+        currentDeviceIndex = videoDevices.findIndex(d => d.deviceId === selectedDeviceId);
+      }
 
       try {
         await codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
@@ -183,6 +194,16 @@
       }
     }
 
+    function switchCamera() {
+      if (!videoDevices.length) return;
+
+      currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+      selectedDeviceId = videoDevices[currentDeviceIndex].deviceId;
+
+      stopScan();
+      startScan();
+    }
+
     function stopScan() {
       if (codeReader) {
         codeReader.reset();
@@ -190,7 +211,6 @@
       }
     }
 
-    // Load navbar and highlight
     fetch("/navbar.html")
       .then(res => res.text())
       .then(html => {
