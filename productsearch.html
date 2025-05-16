@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Product Search - Truly Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
+  <style>
+    #searchWrapper {
+      position: relative;
+    }
+    #searchInput {
+      padding-right: 2.5rem;
+    }
+    #clearSearchBtn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #888;
+      font-size: 1.2rem;
+      display: none;
+    }
+    #clearSearchBtn:hover {
+      color: #555;
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: bold;
+    }
+    .card-subtitle {
+      font-size: 0.9rem;
+      color: #555;
+    }
+    .product-img {
+      height: 100px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <div id="navbarContainer"></div>
+  <script>
+    fetch("/navbar.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbarContainer").innerHTML = html;
+      });
+  </script>
+
+  <div class="container py-4">
+    <div id="searchWrapper" class="mb-3">
+      <input type="text" id="searchInput" class="form-control" placeholder="Search by Title or Barcode" />
+      <span id="clearSearchBtn">&times;</span>
+    </div>
+    <div class="row" id="productCards"></div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
+      authDomain: "trulymarket-c25b6.firebaseapp.com",
+      projectId: "trulymarket-c25b6",
+      storageBucket: "trulymarket-c25b6.firebasestorage.app",
+      messagingSenderId: "810610286008",
+      appId: "1:810610286008:web:847f3bc2c441e103a1434d",
+      measurementId: "G-KWN9XQD8K5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let allData = [];
+    let filteredData = [];
+
+    function renderCards(data) {
+      const container = document.getElementById("productCards");
+      container.innerHTML = "";
+
+      if (data.length === 0) {
+        container.innerHTML = '<div class="col-12 text-muted">No results found.</div>';
+        return;
+      }
+
+      data.forEach(doc => {
+        const col = document.createElement("div");
+        col.className = "col-sm-6 col-md-4 col-lg-3 mb-4";
+
+        col.innerHTML = `
+          <div class="card h-100 shadow-sm">
+            ${doc["Image URL"] ? `<img src="${doc["Image URL"]}" class="card-img-top product-img" alt="...">` : ""}
+            <div class="card-body">
+              <h5 class="card-title">${doc["Title"] || ""}</h5>
+              <h6 class="card-subtitle mb-2">${doc["ProductNameChi"] || ""}</h6>
+              <p class="card-text small">${doc["ProductDesc"] || ""}</p>
+              ${doc["Product URL"] ? `<a href="${doc["Product URL"]}" target="_blank" class="btn btn-sm btn-outline-primary">View Product</a>` : ""}
+            </div>
+          </div>
+        `;
+
+        container.appendChild(col);
+      });
+    }
+
+    function searchRecords() {
+      const keyword = document.getElementById("searchInput").value.trim().toLowerCase();
+      const clearBtn = document.getElementById("clearSearchBtn");
+
+      clearBtn.style.display = keyword ? "inline" : "none";
+
+      if (!keyword) {
+        filteredData = [...allData];
+      } else {
+        filteredData = allData.filter(doc =>
+          (doc["Title"] || "").toLowerCase().includes(keyword) ||
+          (doc["Barcode"] || "").toLowerCase().includes(keyword)
+        );
+      }
+
+      renderCards(filteredData);
+    }
+
+    async function loadData() {
+      const snapshot = await db.collection("pricetaglabel").get();
+      allData = snapshot.docs.map(doc => doc.data());
+      filteredData = [...allData];
+      renderCards(filteredData);
+
+      const input = document.getElementById("searchInput");
+      const clearBtn = document.getElementById("clearSearchBtn");
+
+      input.addEventListener("input", searchRecords);
+      clearBtn.addEventListener("click", () => {
+        input.value = "";
+        clearBtn.style.display = "none";
+        searchRecords();
+      });
+    }
+
+    loadData();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
