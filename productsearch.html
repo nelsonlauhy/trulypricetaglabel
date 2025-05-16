@@ -13,10 +13,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-  <!-- ZXing QR & Barcode Scanner -->
+  <!-- ZXing Barcode/QR Scanner -->
   <script src="https://unpkg.com/@zxing/library@latest"></script>
 
-  <!-- Favicon -->
   <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
 
   <style>
@@ -80,7 +79,6 @@
     </div>
   </div>
 
-  <!-- Script -->
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
@@ -162,7 +160,8 @@
       modal.show();
 
       const videoElement = document.getElementById("qr-video");
-      const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+
+      const devices = await ZXing.BrowserMultiFormatReader.getVideoInputDevices();
       const selectedDeviceId = devices[0]?.deviceId;
 
       codeReader = new ZXing.BrowserMultiFormatReader();
