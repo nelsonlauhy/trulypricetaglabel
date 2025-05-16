@@ -3,21 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Product Search - Truly Market</title>
+  <title>Product Search</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
   <style>
-    #searchWrapper {
-      position: relative;
-    }
-    #searchInput {
-      padding-right: 2.5rem;
-    }
     #clearSearchBtn {
       position: absolute;
-      right: 10px;
+      right: 3rem;
       top: 50%;
       transform: translateY(-50%);
       cursor: pointer;
@@ -25,45 +20,57 @@
       font-size: 1.2rem;
       display: none;
     }
-    #clearSearchBtn:hover {
-      color: #555;
-    }
-    .card-title {
-      font-size: 1rem;
-      font-weight: bold;
-    }
-    .card-subtitle {
-      font-size: 0.9rem;
-      color: #555;
-    }
-    .product-img {
-      height: 100px;
+
+    .card-img-top {
+      margin-top: 8px;
+      height: 120px;
       object-fit: contain;
-      margin-top: 0.5rem;
     }
+
     .card-body {
       text-align: center;
+    }
+
+    #qrModal video {
+      width: 100%;
     }
   </style>
 </head>
 <body class="bg-light">
+
+  <!-- Navbar Container -->
   <div id="navbarContainer"></div>
-  <script>
-    fetch("/navbar.html")
-      .then(res => res.text())
-      .then(html => {
-        document.getElementById("navbarContainer").innerHTML = html;
-      });
-  </script>
 
   <div class="container py-4">
-    <div id="searchWrapper" class="mb-3">
+    <!-- Search -->
+    <div class="input-group mb-4 position-relative">
       <input type="text" id="searchInput" class="form-control" placeholder="Search by Title or Barcode" />
-      <span id="clearSearchBtn">&times;</span>
+      <span id="clearSearchBtn" onclick="clearSearch()">&times;</span>
+      <button class="btn btn-outline-secondary" type="button" onclick="startScan()" title="Scan QR Code">📷</button>
     </div>
-    <div class="row" id="productCards"></div>
+
+    <!-- Product Cards -->
+    <div class="row" id="cardContainer">
+      <div class="text-muted">Loading products...</div>
+    </div>
   </div>
 
+  <!-- QR Modal -->
+  <div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Scan QR Code</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopScan()"></button>
+        </div>
+        <div class="modal-body">
+          <div id="qr-scanner"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase Init -->
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
@@ -74,18 +81,22 @@
       appId: "1:810610286008:web:847f3bc2c441e103a1434d",
       measurementId: "G-KWN9XQD8K5"
     };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+  </script>
 
+  <!-- Core Logic -->
+  <script>
     let allData = [];
-    let filteredData = [];
+    let scanner;
 
     function renderCards(data) {
-      const container = document.getElementById("productCards");
+      const container = document.getElementById("cardContainer");
       container.innerHTML = "";
 
       if (data.length === 0) {
-        container.innerHTML = '<div class="col-12 text-muted">No results found.</div>';
+        container.innerHTML = `<div class="text-muted">No results found.</div>`;
         return;
       }
 
@@ -93,63 +104,103 @@
         const col = document.createElement("div");
         col.className = "col-6 col-sm-6 col-md-4 col-lg-3 mb-4";
 
-        const price = doc["Price"] ? new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(doc["Price"]) : "";
+        const price = doc.Price ? new Intl.NumberFormat("en-CA", {
+          style: "currency",
+          currency: "CAD"
+        }).format(doc.Price) : "";
 
         col.innerHTML = `
           <div class="card h-100 shadow-sm">
-            ${doc["Image URL"] ? `<img src="${doc["Image URL"]}" class="card-img-top product-img" alt="...">` : ""}
+            ${doc["Image URL"] ? `<img src="${doc["Image URL"]}" class="card-img-top" alt="Image">` : ""}
             <div class="card-body">
-              <h5 class="card-title">${doc["Title"] || ""}</h5>
-              <h6 class="card-subtitle mb-2">${doc["ProductNameChi"] || ""}</h6>
-              <p class="card-text small">${doc["ProductDesc"] || ""}</p>
-              ${price ? `<p class="card-text fw-bold">${price}</p>` : ""}
-              ${doc["Product URL"] ? `<a href="${doc["Product URL"]}" target="_blank" class="btn btn-sm btn-outline-primary">View Product</a>` : ""}
+              <h6 class="fw-bold">${doc.ProductNameEng || ""}</h6>
+              <div class="text-primary">${doc.ProductNameChi || ""}</div>
+              <div class="small text-muted mb-2">${doc.ProductDesc || ""}</div>
+              <div class="mb-2"><strong>${price}</strong></div>
+              ${doc["Product URL"] ? `<a href="${doc["Product URL"]}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>` : ""}
             </div>
           </div>
         `;
-
         container.appendChild(col);
       });
     }
 
     function searchRecords() {
       const keyword = document.getElementById("searchInput").value.trim().toLowerCase();
-      const clearBtn = document.getElementById("clearSearchBtn");
+      document.getElementById("clearSearchBtn").style.display = keyword ? "inline" : "none";
 
-      clearBtn.style.display = keyword ? "inline" : "none";
+      const filtered = keyword
+        ? allData.filter(doc =>
+            (doc.Title || "").toLowerCase().includes(keyword) ||
+            (doc.Barcode || "").toLowerCase().includes(keyword))
+        : [...allData];
 
-      if (!keyword) {
-        filteredData = [...allData];
-      } else {
-        filteredData = allData.filter(doc =>
-          (doc["Title"] || "").toLowerCase().includes(keyword) ||
-          (doc["Barcode"] || "").toLowerCase().includes(keyword)
+      renderCards(filtered);
+    }
+
+    function clearSearch() {
+      document.getElementById("searchInput").value = "";
+      document.getElementById("clearSearchBtn").style.display = "none";
+      searchRecords();
+    }
+
+    async function startScan() {
+      const modal = new bootstrap.Modal(document.getElementById("qrModal"));
+      modal.show();
+
+      scanner = new Html5Qrcode("qr-scanner");
+      try {
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          (decodedText) => {
+            document.getElementById("searchInput").value = decodedText;
+            searchRecords();
+            stopScan();
+            modal.hide();
+          }
         );
+      } catch (err) {
+        alert("Failed to access camera: " + err.message);
+        stopScan();
+        modal.hide();
       }
+    }
 
-      renderCards(filteredData);
+    function stopScan() {
+      if (scanner) {
+        scanner.stop().then(() => {
+          scanner.clear();
+          scanner = null;
+        });
+      }
     }
 
     async function loadData() {
       const snapshot = await db.collection("pricetaglabel").get();
       allData = snapshot.docs.map(doc => doc.data());
-      filteredData = [...allData];
-      renderCards(filteredData);
+      renderCards(allData);
 
-      const input = document.getElementById("searchInput");
-      const clearBtn = document.getElementById("clearSearchBtn");
-
-      input.addEventListener("input", searchRecords);
-      clearBtn.addEventListener("click", () => {
-        input.value = "";
-        clearBtn.style.display = "none";
-        searchRecords();
-      });
+      document.getElementById("searchInput").addEventListener("input", searchRecords);
     }
 
     loadData();
+
+    // Load navbar
+    fetch("/navbar.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbarContainer").innerHTML = html;
+        // Highlight active
+        const links = document.querySelectorAll(".nav-link");
+        links.forEach(link => {
+          if (link.href.endsWith("productsearch.html")) {
+            link.classList.add("fw-bold", "text-decoration-underline");
+          }
+        });
+      });
   </script>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
