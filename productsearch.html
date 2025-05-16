@@ -194,14 +194,20 @@
       }
     }
 
-    function switchCamera() {
-      if (!videoDevices.length) return;
+    async function switchCamera() {
+    if (!videoDevices.length) return;
 
-      currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
-      selectedDeviceId = videoDevices[currentDeviceIndex].deviceId;
+    currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+    selectedDeviceId = videoDevices[currentDeviceIndex].deviceId;
 
-      stopScan();
-      startScan();
+    if (codeReader) {
+        await codeReader.reset(); // 確保釋放現有鏡頭
+    }
+
+    // 短暫延遲以確保 camera 釋放完成
+    setTimeout(() => {
+        startScan(); // 重新啟動掃描
+    }, 300); // 300ms 通常足夠釋放資源
     }
 
     function stopScan() {
