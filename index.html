@@ -72,16 +72,16 @@
   <script src="https://unpkg.com/@pdf-lib/fontkit/dist/fontkit.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
-<body class="p-4 bg-light">
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-    <div class="container-fluid">
-      <a class="navbar-brand d-flex align-items-center" href="#">
-        <img src="/images/truly_favicon_o1.png" alt="Logo" style="height: 30px; margin-right: 10px;">
-        Truly Market
-      </a>
-    </div>
-  </nav>
+<body class="bg-light">
+  <!-- Navbar placeholder -->
+  <div id="navbarContainer"></div>
+  <script>
+    fetch("/navbar.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbarContainer").innerHTML = html;
+      });
+  </script>
   <div class="container-fluid">
     <div class="d-flex align-items-center mb-4">
       <img src="/images/truly_favicon_o1.png" alt="Logo" style="height: 32px; margin-right: 10px;">
