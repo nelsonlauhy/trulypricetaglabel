@@ -1,8 +1,8 @@
-<nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #5a5c5a;">
+<nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #4CAF50;">
   <div class="container-fluid">
     <a class="navbar-brand d-flex align-items-center" href="#">
       <img src="/images/truly_favicon_o1.png" alt="Logo" style="height: 30px; margin-right: 10px;">
-      Truly Market Back Office
+      Truly Market Product Price Tag Tool
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
@@ -10,12 +10,20 @@
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav ms-auto">
         <li class="nav-item">
-          <a class="nav-link text-white" href="index.html">Price Tag Tool</a>
+          <a class="nav-link text-white" href="index.html" id="navPriceTag">Price Tag Tool</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link text-white" href="productsearch.html">Product Search</a>
+          <a class="nav-link text-white" href="productsearch.html" id="navProductSearch">Product Search</a>
         </li>
       </ul>
     </div>
   </div>
 </nav>
+<script>
+  const path = window.location.pathname;
+  if (path.includes("index.html")) {
+    document.getElementById("navPriceTag")?.classList.add("fw-bold", "text-decoration-underline");
+  } else if (path.includes("productsearch.html")) {
+    document.getElementById("navProductSearch")?.classList.add("fw-bold", "text-decoration-underline");
+  }
+</script>
