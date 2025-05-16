@@ -161,10 +161,10 @@
 
       const videoElement = document.getElementById("qr-video");
 
-      const devices = await ZXing.BrowserMultiFormatReader.getVideoInputDevices();
-      const selectedDeviceId = devices[0]?.deviceId;
-
+      // ✅ 使用 instance method 取得裝置清單
       codeReader = new ZXing.BrowserMultiFormatReader();
+      const devices = await codeReader.listVideoInputDevices();
+      const selectedDeviceId = devices[0]?.deviceId;
 
       try {
         await codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
