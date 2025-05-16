@@ -43,7 +43,6 @@
   <div id="navbarContainer"></div>
 
   <div class="container py-4">
-    <!-- Search Field -->
     <div class="input-group mb-4 position-relative">
       <input type="text" id="searchInput" class="form-control" placeholder="Search by Title or Barcode" />
       <span id="clearSearchBtn" onclick="clearSearch()">&times;</span>
@@ -52,7 +51,6 @@
       </button>
     </div>
 
-    <!-- Product Cards -->
     <div class="row" id="cardContainer">
       <div class="text-muted">Loading products...</div>
     </div>
@@ -73,7 +71,6 @@
     </div>
   </div>
 
-  <!-- Firebase Init -->
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
@@ -87,10 +84,7 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-  </script>
 
-  <!-- Core Script -->
-  <script>
     let allData = [];
     let codeReader;
 
@@ -98,7 +92,6 @@
       const snapshot = await db.collection("pricetaglabel").get();
       allData = snapshot.docs.map(doc => doc.data());
       renderCards(allData);
-
       document.getElementById("searchInput").addEventListener("input", searchRecords);
     }
 
@@ -160,10 +153,10 @@
       modal.show();
 
       const videoElement = document.getElementById("qr-video");
-      const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+      const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
       const selectedDeviceId = devices[0]?.deviceId;
 
-      codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+      codeReader = new ZXing.BrowserMultiFormatReader();
 
       try {
         await codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
