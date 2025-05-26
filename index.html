@@ -446,7 +446,17 @@
           } else {
             lines.push(currentLine);
             currentLine = word;
-            if (lines.length === maxLines - 1) break;
+            if (lines.length === maxLines - 1) {
+              // Truncate last line with ellipsis if needed
+              const remaining = [currentLine, ...words.slice(words.indexOf(word) + 1)].join(' ');
+              let truncated = '';
+              for (const ch of remaining) {
+                if (font.widthOfTextAtSize(truncated + ch + '…', size) > maxWidth) break;
+                truncated += ch;
+              }
+              lines.push(truncated + '…');
+              return lines;
+            }
           }
         }
 
