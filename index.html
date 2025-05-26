@@ -526,7 +526,7 @@
         textY += 10;
         const lines = wrapTextByWords(item.ProductNameEng || '', maxWidth, customFont, 8, 2);
         const paddedLines = lines.length === 1 ? [lines[0], ''] : lines;
-        paddedLines.reverse().forEach((line, idx) => {
+        paddedLines.forEach((line, idx) => {
           page.drawText(line, {
             x: textX,
             y: textY - (idx * 8),
