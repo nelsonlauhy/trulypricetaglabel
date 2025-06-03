@@ -268,11 +268,9 @@
       );
       if (!row) return;
 
-      const variantId = row.cells[1]?.textContent?.trim();
+      const variantId = Number(row.cells[1]?.textContent?.trim());
       const tagContainer = document.getElementById("printListTags");
-
-      if ([...tagContainer.children].some(el => el.dataset.variantId === variantId)) return;
-
+      if ([...tagContainer.children].some(el => el.dataset.variantId == variantId)) return;
 
       const ProductNameEng = row.cells[5]?.textContent.trim();
       const ProductNameChi = row.querySelector('[data-field="ProductNameChi"]')?.textContent.trim();
@@ -280,7 +278,7 @@
 
       // ✅ Update Firestore
       db.collection("pricetaglabel")
-        .where("Variant ID", "==", String(variantId))
+        .where("Variant ID", "==", variantId)
         .get()
         .then(snapshot => {
           if (snapshot.empty) {
