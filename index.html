@@ -268,11 +268,9 @@
       );
       if (!row) return;
 
-      const variantId = row.cells[1]?.textContent?.trim();
+      const variantId = Number(row.cells[1]?.textContent?.trim());
       const tagContainer = document.getElementById("printListTags");
-
-      if ([...tagContainer.children].some(el => el.dataset.variantId === variantId)) return;
-
+      if ([...tagContainer.children].some(el => el.dataset.variantId == variantId)) return;
 
       const ProductNameEng = row.cells[5]?.textContent.trim();
       const ProductNameChi = row.querySelector('[data-field="ProductNameChi"]')?.textContent.trim();
@@ -280,7 +278,7 @@
 
       // ✅ Update Firestore
       db.collection("pricetaglabel")
-        .where("Variant ID", "==", String(variantId))
+        .where("Variant ID", "==", variantId)
         .get()
         .then(snapshot => {
           if (snapshot.empty) {
@@ -448,17 +446,7 @@
           } else {
             lines.push(currentLine);
             currentLine = word;
-            if (lines.length === maxLines - 1) {
-              // Truncate last line with ellipsis if needed
-              const remaining = [currentLine, ...words.slice(words.indexOf(word) + 1)].join(' ');
-              let truncated = '';
-              for (const ch of remaining) {
-                if (font.widthOfTextAtSize(truncated + ch + '…', size) > maxWidth) break;
-                truncated += ch;
-              }
-              lines.push(truncated + '…');
-              return lines;
-            }
+            if (lines.length === maxLines - 1) break;
           }
         }
 
@@ -512,7 +500,7 @@
           x: textX,
           y: textY,
           size: 9,
-          font: customFont,
+          font: arialFont,
           color: rgb(0.2, 0.2, 0.2)
         });
 
@@ -538,7 +526,7 @@
         textY += 10;
         const lines = wrapTextByWords(item.ProductNameEng || '', maxWidth, customFont, 8, 2);
         const paddedLines = lines.length === 1 ? [lines[0], ''] : lines;
-        paddedLines.forEach((line, idx) => {
+        paddedLines.reverse().forEach((line, idx) => {
           page.drawText(line, {
             x: textX,
             y: textY - (idx * 8),
