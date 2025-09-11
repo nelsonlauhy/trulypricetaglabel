@@ -29,20 +29,14 @@
       font-size: 1.2rem;
       display: none;
     }
-
     .card-img-top {
       margin-top: 8px;
       height: 120px;
       object-fit: contain;
     }
-
-    .card-body {
-      text-align: center;
-    }
-
-    #qrModal video {
-      width: 100%;
-    }
+    .card-body { text-align: center; }
+    #qrModal video { width: 100%; }
+    .btn-mini-group { display: inline-flex; gap: .5rem; flex-wrap: wrap; justify-content: center; }
   </style>
 </head>
 <body class="bg-light">
@@ -109,6 +103,71 @@
       document.getElementById("searchInput").addEventListener("input", searchRecords);
     }
 
+    // --------- helpers for short link ----------
+    const SHORT_LINK_PREFIX = "https://trulymarket.ca/products/";
+
+    function extractHandleFromUrl(url) {
+      if (!url) return "";
+      try {
+        const u = new URL(url);
+        const m = u.pathname.match(/\/products\/([^\/?#]+)/i);
+        return m ? decodeURIComponent(m[1]) : "";
+      } catch {
+        // Fallback simple match if it's not a fully-qualified URL
+        const m = (url || "").match(/\/products\/([^\/?#]+)/i);
+        return m ? decodeURIComponent(m[1]) : "";
+      }
+    }
+
+    function resolveHandle(doc) {
+      // Prefer explicit Handle field, support both "Handle" and "handle"
+      const direct =
+        (typeof doc.Handle === "string" && doc.Handle.trim()) ||
+        (typeof doc.handle === "string" && doc.handle.trim());
+      if (direct) return direct.trim();
+
+      // Fallback: try to parse from Product URL
+      const fromUrl = extractHandleFromUrl(doc["Product URL"] || doc.ProductURL || "");
+      return fromUrl || "";
+    }
+
+    async function copyShortLink(evt) {
+      const btn = evt.currentTarget;
+      const url = btn?.dataset?.url;
+      if (!url) {
+        alert("Short link unavailable.");
+        return;
+      }
+      // Clipboard API with fallback for older iOS/Safari
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+        } else {
+          const ta = document.createElement("textarea");
+          ta.value = url;
+          ta.setAttribute("readonly", "");
+          ta.style.position = "absolute";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          ta.setSelectionRange(0, ta.value.length); // iOS
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+        }
+        // Visual feedback
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-clipboard-check"></i> Copied!';
+        btn.disabled = true;
+        setTimeout(() => {
+          btn.innerHTML = original;
+          btn.disabled = false;
+        }, 1500);
+      } catch (e) {
+        alert("Unable to copy. " + e);
+      }
+    }
+    // -------------------------------------------
+
     function renderCards(data) {
       const container = document.getElementById("cardContainer");
       container.innerHTML = "";
@@ -126,6 +185,24 @@
           style: "currency", currency: "CAD"
         }).format(doc.Price) : "";
 
+        const handle = resolveHandle(doc);
+        const shortUrl = handle ? (SHORT_LINK_PREFIX + encodeURIComponent(handle)) : "";
+
+        const viewBtn = doc["Product URL"]
+          ? `<a href="${doc["Product URL"]}" target="_blank" class="btn btn-sm btn-outline-primary">
+               <i class="bi bi-box-arrow-up-right"></i> View
+             </a>`
+          : "";
+
+        const copyBtn = shortUrl
+          ? `<button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    data-url="${shortUrl}"
+                    onclick="copyShortLink(event)">
+               <i class="bi bi-clipboard"></i> Copy Short Link
+             </button>`
+          : "";
+
         col.innerHTML = `
           <div class="card h-100 shadow-sm">
             ${doc["Image URL"] ? `<img src="${doc["Image URL"]}" class="card-img-top" alt="Image">` : ""}
@@ -134,7 +211,11 @@
               <div class="text-primary">${doc.ProductNameChi || ""}</div>
               <div class="small text-muted mb-2">${doc.ProductDesc || ""}</div>
               <div class="mb-2"><strong>${price}</strong></div>
-              ${doc["Product URL"] ? `<a href="${doc["Product URL"]}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>` : ""}
+              <div class="btn-mini-group">
+                ${viewBtn}
+                ${copyBtn}
+              </div>
+              ${!shortUrl ? `<div class="mt-2 small text-muted">No handle found</div>` : ""}
             </div>
           </div>
         `;
@@ -170,7 +251,7 @@
       codeReader = new ZXing.BrowserMultiFormatReader();
       videoDevices = await codeReader.listVideoInputDevices();
 
-      // 預設為後鏡頭
+      // Default to back camera
       if (selectedDeviceId === null) {
         const backCam = videoDevices.find(d => /back|rear|environment/i.test(d.label));
         selectedDeviceId = backCam?.deviceId || videoDevices[0]?.deviceId;
@@ -195,19 +276,15 @@
     }
 
     async function switchCamera() {
-    if (!videoDevices.length) return;
+      if (!videoDevices.length) return;
 
-    currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
-    selectedDeviceId = videoDevices[currentDeviceIndex].deviceId;
+      currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+      selectedDeviceId = videoDevices[currentDeviceIndex].deviceId;
 
-    if (codeReader) {
-        await codeReader.reset(); // 確保釋放現有鏡頭
-    }
-
-    // 短暫延遲以確保 camera 釋放完成
-    setTimeout(() => {
-        startScan(); // 重新啟動掃描
-    }, 300); // 300ms 通常足夠釋放資源
+      if (codeReader) {
+        await codeReader.reset();
+      }
+      setTimeout(() => { startScan(); }, 300);
     }
 
     function stopScan() {
