@@ -186,7 +186,8 @@
         }).format(doc.Price) : "";
 
         const handle = resolveHandle(doc);
-        const shortUrl = handle ? (SHORT_LINK_PREFIX + encodeURIComponent(handle)) : "";
+        const shortUrl = handle ? (SHORT_LINK_PREFIX + handle.trim()) : "";
+
 
         const viewBtn = doc["Product URL"]
           ? `<a href="${doc["Product URL"]}" target="_blank" class="btn btn-sm btn-outline-primary">
