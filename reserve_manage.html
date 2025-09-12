@@ -53,9 +53,9 @@
 
     /* Bigger QTY badge */
     .qty-badge{
-      font-size: 1rem;          /* bigger text */
-      padding: .4em .65em;      /* slightly more padding */
-      line-height: 1;           /* keep compact */
+      font-size: 1rem;
+      padding: .4em .65em;
+      line-height: 1;
     }
   </style>
 </head>
@@ -75,7 +75,7 @@
     </div>
 
     <!-- Toolbar -->
-    <div class="toolbar row g-2 mb-3">
+    <div class="toolbar row g-2 mb-2">
       <div class="col-12 col-md-3">
         <input id="kw" type="text" class="form-control" placeholder="搜尋：產品名 / 條碼 / 客戶 / 電話 / Email" oninput="applyFilters()">
       </div>
@@ -106,6 +106,15 @@
       <div class="col-6 col-md-3 text-end">
         <button class="btn btn-outline-secondary me-1" onclick="refreshList()"><i class="bi bi-arrow-clockwise"></i></button>
         <button class="btn btn-outline-secondary" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i> 匯出</button>
+      </div>
+    </div>
+
+    <!-- Totals bar (based on current filtered list) -->
+    <div id="statsBar" class="d-flex justify-content-between align-items-center mb-2">
+      <div class="small text-muted">顯示結果</div>
+      <div>
+        <span class="badge text-bg-secondary me-1">項目：<span id="statItems" class="fw-bold">0</span></span>
+        <span class="badge text-bg-primary">總數量：<span id="statQty" class="fw-bold">0</span></span>
       </div>
     </div>
 
@@ -335,6 +344,18 @@
       return { imageUrl: d["Image URL"] || "", productUrl: d["Product URL"] || d.ProductURL || "", shortUrl };
     }
 
+    // ===== Totals =====
+    function updateStats(list){
+      const items = list.length;
+      let qty = 0;
+      for (const r of list) {
+        const n = Number(r?.qty ?? 0);
+        qty += isNaN(n) ? 0 : n;
+      }
+      document.getElementById("statItems").textContent = items;
+      document.getElementById("statQty").textContent = qty;
+    }
+
     // ===== Load list =====
     async function refreshList() {
       selectedIds.clear();
@@ -369,6 +390,7 @@
       });
 
       renderList(viewList);
+      updateStats(viewList); // <-- update totals for current filtered list
     }
 
     function rowCheckbox(id) {
