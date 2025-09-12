@@ -24,7 +24,6 @@
     .list-group-item { padding: .75rem; }
     .status-badge { text-transform: capitalize; }
     .small-muted { font-size:.85rem; color:#6c757d; }
-    .btn-mini { padding:.2rem .5rem; font-size:.8rem; }
     .sticky-actions { position:sticky; bottom:0; background:#fff; border-top:1px solid #eee; padding:.5rem; }
 
     /* Product search dropdown */
@@ -148,14 +147,14 @@
                 </select>
               </div>
 
-              <!-- NEW: Product search -->
+              <!-- Product search -->
               <div class="col-12">
                 <label class="form-label">產品搜尋</label>
                 <div class="prod-search-wrap">
                   <input id="prodSearch" type="text" class="form-control" placeholder="輸入英文/中文品名或條碼 (≥2字開始搜尋)">
                   <div id="prodResults" class="prod-results"></div>
                 </div>
-                <div class="form-text-compact">點選結果可自動填入「產品名稱 / 條碼 / Variant ID」。</div>
+                <div class="form-text-compact">點選結果可自動填入「產品名稱 / 條碼」。</div>
               </div>
 
               <div class="col-12 col-md-6">
@@ -165,10 +164,6 @@
               <div class="col-6 col-md-3">
                 <label class="form-label">條碼</label>
                 <input id="barcode" type="text" class="form-control" placeholder="Barcode">
-              </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">Variant ID</label>
-                <input id="variantId" type="text" class="form-control" placeholder="Variant ID">
               </div>
 
               <div class="col-6 col-md-3">
@@ -182,10 +177,6 @@
               <div class="col-6 col-md-3">
                 <label class="form-label">電話</label>
                 <input id="phone" type="text" class="form-control" placeholder="電話">
-              </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">採購供應商</label>
-                <input id="supplier" type="text" class="form-control" placeholder="Supplier (補貨)">
               </div>
 
               <div class="col-6 col-md-3">
@@ -255,7 +246,7 @@
     let delTargetId = null;
 
     // Product cache for search
-    let productsCache = [];   // [{Title, ProductNameEng, ProductNameChi, Barcode, VariantID, Image URL, Product URL, Handle/handle}]
+    let productsCache = [];   // [{Title, ProductNameEng, ProductNameChi, Barcode, Image URL, Product URL, Handle/handle}]
     let prodActiveIndex = -1; // keyboard navigation
 
     // navbar 高亮
@@ -386,7 +377,7 @@
                 客戶：${escapeHtml(r.customerName||"-")}　電話：${escapeHtml(r.phone||"-")}
               </div>
               <div class="small-muted">
-                供應商：${escapeHtml(r.supplier||"-")}　ETA：${r.etaDate||"-"}　來源：${r.source||"-"}
+                ETA：${r.etaDate||"-"}　來源：${r.source||"-"}　經手：${escapeHtml(r.staff||"-")}
               </div>
               <div class="text-muted truncate-2">${escapeHtml(r.notes||"")}</div>
               <div class="mt-2 d-flex flex-wrap gap-2">
@@ -468,14 +459,13 @@
       document.getElementById("status").value = "open";
       document.getElementById("priority").value = "normal";
       document.getElementById("source").value = "store";
-      ["productTitle","barcode","variantId","qty","customerName","phone","supplier","etaDate","staff","notes","prodSearch"].forEach(id=>{
+      ["productTitle","barcode","qty","customerName","phone","etaDate","staff","notes","prodSearch"].forEach(id=>{
         const el = document.getElementById(id);
         if (!el) return;
         el.value = (id==="qty") ? 1 : "";
       });
       hideProdResults();
       document.getElementById("auditInfo").textContent = "";
-      // focus product search to speed up workflow
       setTimeout(()=> document.getElementById("prodSearch").focus(), 200);
     }
 
@@ -490,11 +480,9 @@
       document.getElementById("source").value = r.source || "store";
       document.getElementById("productTitle").value = r.productTitle || "";
       document.getElementById("barcode").value = r.barcode || "";
-      document.getElementById("variantId").value = r.variantId || "";
       document.getElementById("qty").value = r.qty || 1;
       document.getElementById("customerName").value = r.customerName || "";
       document.getElementById("phone").value = r.phone || "";
-      document.getElementById("supplier").value = r.supplier || "";
       document.getElementById("etaDate").value = r.etaDate || "";
       document.getElementById("staff").value = r.staff || "";
       document.getElementById("notes").value = r.notes || "";
@@ -517,11 +505,9 @@
         source: document.getElementById("source").value || "store",
         productTitle: document.getElementById("productTitle").value.trim(),
         barcode: String(document.getElementById("barcode").value).trim(),
-        variantId: String(document.getElementById("variantId").value).trim(),
         qty: Number(document.getElementById("qty").value || 1),
         customerName: document.getElementById("customerName").value.trim(),
         phone: document.getElementById("phone").value.trim(),
-        supplier: document.getElementById("supplier").value.trim(),
         etaDate: document.getElementById("etaDate").value,
         staff: document.getElementById("staff").value.trim(),
         notes: document.getElementById("notes").value.trim(),
@@ -572,24 +558,24 @@
       refreshList();
     }
 
-    // ===== Export CSV =====
+    // ===== Export CSV (UTF-8 BOM to fix Excel中文亂碼) =====
     function exportCSV() {
-      const rows = [["id","type","status","priority","source","productTitle","barcode","variantId","qty","customerName","phone","supplier","etaDate","staff","notes","createdAt","updatedAt"]];
+      const header = ["id","type","status","priority","source","productTitle","barcode","qty","customerName","phone","etaDate","staff","notes","createdAt","updatedAt"];
+      const rows = [header];
       (viewList.length? viewList: rawList).forEach(r=>{
         const cAt = r.createdAt?.toDate ? r.createdAt.toDate() : (r.createdAt? new Date(r.createdAt): "");
         const uAt = r.updatedAt?.toDate ? r.updatedAt.toDate() : (r.updatedAt? new Date(r.updatedAt): "");
         rows.push([
           r.id, r.type||"", r.status||"", r.priority||"", r.source||"",
-          (r.productTitle||"").replaceAll('"','""'),
-          r.barcode||"", r.variantId||"", r.qty||"",
-          (r.customerName||"").replaceAll('"','""'),
-          r.phone||"", r.supplier||"", r.etaDate||"", r.staff||"",
-          (r.notes||"").replaceAll('"','""'),
-          cAt? cAt.toISOString():"", uAt? uAt.toISOString():""
+          r.productTitle||"", r.barcode||"", r.qty||"",
+          r.customerName||"", r.phone||"", r.etaDate||"", r.staff||"",
+          r.notes||"", cAt? cAt.toISOString():"", uAt? uAt.toISOString():""
         ]);
       });
-      const csv = rows.map(r=> r.map(v=> `"${String(v??"")}"`).join(",")).join("\r\n");
-      const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+      // 逐格安全處理，引號轉義
+      const csv = rows.map(r=> r.map(v=> `"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\r\n");
+      const bom = "\uFEFF"; // UTF-8 BOM
+      const blob = new Blob([bom + csv], {type:"text/csv;charset=utf-8;"});
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = "reservations_export.csv";
@@ -597,9 +583,8 @@
       URL.revokeObjectURL(a.href);
     }
 
-    // ===== Product Search (NEW) =====
+    // ===== Product Search =====
     async function preloadProducts() {
-      // 只抓必要欄位，兼容資料鍵名差異
       const snap = await db.collection(PRODUCT_COL).get();
       productsCache = snap.docs.map(d => {
         const x = d.data();
@@ -608,7 +593,6 @@
           ProductNameEng: x.ProductNameEng || x.Title || "",
           ProductNameChi: x.ProductNameChi || "",
           Barcode: String(x.Barcode || "").trim(),
-          VariantID: String(x.VariantID || x.VariantId || x.variantId || "").trim(),
           ImageURL: x["Image URL"] || "",
           ProductURL: x["Product URL"] || x.ProductURL || "",
           Handle: (x.Handle || x.handle || ""),
@@ -617,11 +601,9 @@
     }
 
     function normalize(s){ return String(s||"").toLowerCase(); }
-
     function filterProducts(term) {
       if (!term || term.length < 2) return [];
       const t = normalize(term);
-      // 預設篩 English/Chinese/Barcode，前 20 筆
       const res = [];
       for (const p of productsCache) {
         if (
@@ -648,15 +630,12 @@
             <div class="flex-grow-1">
               <div class="fw-semibold truncate-1">${escapeHtml(p.ProductNameEng || p.Title)}</div>
               <div class="text-muted small truncate-1">${escapeHtml(p.ProductNameChi || "")}</div>
-              <div class="small"><span class="badge bg-light text-dark prod-badge">條碼: ${escapeHtml(p.Barcode||'-')}</span>
-                ${p.VariantID ? `<span class="badge bg-light text-dark prod-badge ms-1">VarID: ${escapeHtml(p.VariantID)}</span>` : ''}</div>
+              <div class="small"><span class="badge bg-light text-dark prod-badge">條碼: ${escapeHtml(p.Barcode||'-')}</span></div>
             </div>
           </div>
         </div>
       `).join("");
       box.style.display = "block";
-
-      // click 綁定
       [...box.querySelectorAll(".prod-item")].forEach(el=>{
         el.addEventListener("click", ()=>{
           const idx = Number(el.dataset.idx);
@@ -664,14 +643,12 @@
         });
       });
     }
-
     function hideProdResults() {
       const box = document.getElementById("prodResults");
       box.style.display = "none";
       box.innerHTML = "";
       prodActiveIndex = -1;
     }
-
     function chooseProduct(p) {
       if (!p) return;
       document.getElementById("productTitle").value = p.ProductNameEng || p.Title || "";
@@ -682,38 +659,26 @@
         }
       }
       document.getElementById("barcode").value = p.Barcode || "";
-      document.getElementById("variantId").value = p.VariantID || "";
       document.getElementById("prodSearch").value = "";
       hideProdResults();
-      // 快速移動到數量欄
       setTimeout(()=> document.getElementById("qty").focus(), 50);
     }
-
-    // debounce
-    function debounce(fn, wait=150){
-      let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); };
-    }
-
+    function debounce(fn, wait=150){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); }; }
     const onProdSearchInput = debounce(()=>{
       const term = document.getElementById("prodSearch").value.trim();
       const list = filterProducts(term);
       showProdResults(list);
     }, 200);
-
-    // keyboard nav for dropdown
     function onProdSearchKeydown(e) {
       const box = document.getElementById("prodResults");
       if (box.style.display !== "block") return;
       const items = [...box.querySelectorAll(".prod-item")];
       if (!items.length) return;
-      if (e.key === "ArrowDown") {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        prodActiveIndex = (prodActiveIndex + 1) % items.length;
-        items.forEach((el,i)=> el.classList.toggle("active", i===prodActiveIndex));
-        items[prodActiveIndex].scrollIntoView({block:"nearest"});
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        prodActiveIndex = (prodActiveIndex - 1 + items.length) % items.length;
+        prodActiveIndex = (e.key === "ArrowDown")
+          ? (prodActiveIndex + 1) % items.length
+          : (prodActiveIndex - 1 + items.length) % items.length;
         items.forEach((el,i)=> el.classList.toggle("active", i===prodActiveIndex));
         items[prodActiveIndex].scrollIntoView({block:"nearest"});
       } else if (e.key === "Enter") {
@@ -724,23 +689,16 @@
         hideProdResults();
       }
     }
-
-    // blur handling
-    function prodSearchBlur(e){
-      // 延遲讓點擊能觸發
-      setTimeout(()=> hideProdResults(), 150);
-    }
+    function prodSearchBlur(){ setTimeout(()=> hideProdResults(), 150); }
 
     // ===== Init =====
     async function init() {
       await Promise.all([preloadProducts(), refreshList()]);
-      // 事件綁定
       const ps = document.getElementById("prodSearch");
       ps.addEventListener("input", onProdSearchInput);
       ps.addEventListener("keydown", onProdSearchKeydown);
       ps.addEventListener("blur", prodSearchBlur);
     }
-
     init();
   </script>
 
