@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>顧客預留 / 補貨管理</title>
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
+
+  <style>
+    body { background:#f8f9fa; }
+    .toolbar .form-select, .toolbar .form-control { height: 38px; }
+    .truncate-1 { display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+    .truncate-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .thumb { width:56px; height:56px; object-fit:contain; background:#fff; border:1px solid #eee; border-radius:.5rem; }
+    .list-group-item { padding: .75rem; }
+    .status-badge { text-transform: capitalize; }
+    .small-muted { font-size:.85rem; color:#6c757d; }
+    .btn-mini { padding:.2rem .5rem; font-size:.8rem; }
+    .sticky-actions { position:sticky; bottom:0; background:#fff; border-top:1px solid #eee; padding:.5rem; }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <div id="navbarContainer"></div>
+
+  <div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h4 class="mb-0">顧客預留 / 補貨管理</h4>
+      <div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editModal" onclick="openCreate()">
+          <i class="bi bi-plus-lg"></i> 新增紀錄
+        </button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar row g-2 mb-3">
+      <div class="col-12 col-md-3">
+        <input id="kw" type="text" class="form-control" placeholder="搜尋：產品名 / 條碼 / 客戶 / 電話" oninput="applyFilters()">
+      </div>
+      <div class="col-6 col-md-2">
+        <select id="typeFilter" class="form-select" onchange="applyFilters()">
+          <option value="">全部類型</option>
+          <option value="reserve">顧客預留</option>
+          <option value="restock">補貨請求</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <select id="statusFilter" class="form-select" onchange="applyFilters()">
+          <option value="">全部狀態</option>
+          <option value="open">Open</option>
+          <option value="ordered">Ordered</option>
+          <option value="received">Received</option>
+          <option value="closed">Closed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <select id="priorityFilter" class="form-select" onchange="applyFilters()">
+          <option value="">優先度</option>
+          <option value="high">High</option>
+          <option value="normal">Normal</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3 text-end">
+        <button class="btn btn-outline-secondary me-1" onclick="refreshList()"><i class="bi bi-arrow-clockwise"></i></button>
+        <button class="btn btn-outline-secondary" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i> 匯出</button>
+      </div>
+    </div>
+
+    <!-- List -->
+    <div id="listContainer" class="list-group shadow-sm">
+      <div class="list-group-item text-muted">載入中…</div>
+    </div>
+
+    <div class="sticky-actions d-flex gap-2 justify-content-end mt-3">
+      <button class="btn btn-sm btn-outline-secondary" onclick="bulkChangeStatus('open')">批次設為 Open</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="bulkChangeStatus('ordered')">批次設為 Ordered</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="bulkChangeStatus('received')">批次設為 Received</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="bulkChangeStatus('closed')">批次設為 Closed</button>
+    </div>
+  </div>
+
+  <!-- Create/Edit Modal -->
+  <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <form id="editForm" onsubmit="saveRecord(event)">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalTitle">新增紀錄</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="docId">
+            <div class="row g-3">
+              <div class="col-6 col-md-3">
+                <label class="form-label">類型</label>
+                <select id="type" class="form-select" required>
+                  <option value="reserve">顧客預留</option>
+                  <option value="restock">補貨請求</option>
+                </select>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">狀態</label>
+                <select id="status" class="form-select" required>
+                  <option value="open">Open</option>
+                  <option value="ordered">Ordered</option>
+                  <option value="received">Received</option>
+                  <option value="closed">Closed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">優先度</label>
+                <select id="priority" class="form-select">
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">來源</label>
+                <select id="source" class="form-select">
+                  <option value="store">Store</option>
+                  <option value="whatsapp">WhatsApp</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label">產品名稱</label>
+                <input id="productTitle" type="text" class="form-control" placeholder="Product Title">
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">條碼</label>
+                <input id="barcode" type="text" class="form-control" placeholder="Barcode">
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">Variant ID</label>
+                <input id="variantId" type="text" class="form-control" placeholder="Variant ID">
+              </div>
+
+              <div class="col-6 col-md-3">
+                <label class="form-label">數量</label>
+                <input id="qty" type="number" min="1" step="1" class="form-control" value="1" required>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">客戶姓名</label>
+                <input id="customerName" type="text" class="form-control" placeholder="客戶名稱">
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">電話</label>
+                <input id="phone" type="text" class="form-control" placeholder="電話">
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">採購供應商</label>
+                <input id="supplier" type="text" class="form-control" placeholder="Supplier (補貨)">
+              </div>
+
+              <div class="col-6 col-md-3">
+                <label class="form-label">預計到貨</label>
+                <input id="etaDate" type="date" class="form-control">
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">經手員工</label>
+                <input id="staff" type="text" class="form-control" placeholder="Staff">
+              </div>
+              <div class="col-12">
+                <label class="form-label">備註</label>
+                <textarea id="notes" rows="2" class="form-control" placeholder="Notes"></textarea>
+              </div>
+
+              <div class="col-12 small-muted">
+                產品圖片與連結：會自動以 <code>barcode</code> 嘗試關聯 <code>pricetaglabel</code>（若找到）。
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <div class="me-auto small text-muted" id="auditInfo"></div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="submit" class="btn btn-primary">儲存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Delete Modal -->
+  <div class="modal fade" id="confirmDelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">刪除確認</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">確定要刪除此紀錄？此動作無法還原。</div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-danger" id="btnDoDelete">刪除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Firebase Config (沿用你現有設定) =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
+      authDomain: "trulymarket-c25b6.firebaseapp.com",
+      projectId: "trulymarket-c25b6",
+      storageBucket: "trulymarket-c25b6.firebasestorage.app",
+      messagingSenderId: "810610286008",
+      appId: "1:810610286008:web:847f3bc2c441e103a1434d",
+      measurementId: "G-KWN9XQD8K5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ===== Globals =====
+    const COL = "cust_reservations";          // 本頁面管理的集合
+    const PRODUCT_COL = "pricetaglabel";      // 產品資料來源（連動用）
+    const SHORT_LINK_PREFIX = "https://trulymarket.ca/products/";
+    let rawList = [];      // 全部資料
+    let viewList = [];     // 篩選後資料
+    let selectedIds = new Set();
+    let delTargetId = null;
+
+    // navbar 高亮
+    fetch("/navbar.html")
+      .then(r => r.text())
+      .then(html => {
+        document.getElementById("navbarContainer").innerHTML = html;
+        document.querySelectorAll(".nav-link").forEach(link => {
+          if (link.href.endsWith("reserve_manage.html")) {
+            link.classList.add("fw-bold","text-decoration-underline");
+          }
+        });
+      });
+
+    // ===== Helpers for short link / image resolve from pricetaglabel =====
+    function extractHandleFromUrl(url) {
+      if (!url) return "";
+      try {
+        const u = new URL(url);
+        const m = u.pathname.match(/\/products\/([^\/?#]+)/i);
+        return m ? decodeURIComponent(m[1]) : "";
+      } catch {
+        const m = (url || "").match(/\/products\/([^\/?#]+)/i);
+        return m ? decodeURIComponent(m[1]) : "";
+      }
+    }
+    function resolveHandle(p) {
+      const direct = (typeof p.Handle==="string" && p.Handle.trim()) || (typeof p.handle==="string" && p.handle.trim());
+      if (direct) return direct.trim();
+      const fromUrl = extractHandleFromUrl(p["Product URL"] || p.ProductURL || "");
+      return fromUrl || "";
+    }
+
+    async function lookupProductByBarcode(barcode) {
+      if (!barcode) return null;
+      const q = await db.collection(PRODUCT_COL).where("Barcode","==", String(barcode)).limit(1).get();
+      if (q.empty) return null;
+      const d = q.docs[0].data();
+      const handle = resolveHandle(d);
+      const shortUrl = handle ? (SHORT_LINK_PREFIX + handle) : "";
+      return {
+        imageUrl: d["Image URL"] || "",
+        productUrl: d["Product URL"] || d.ProductURL || "",
+        shortUrl,
+        productNameEng: d.ProductNameEng || d.Title || "",
+        productNameChi: d.ProductNameChi || "",
+        price: d.Price || null
+      };
+    }
+
+    // ===== Load list =====
+    async function refreshList() {
+      selectedIds.clear();
+      document.getElementById("listContainer").innerHTML = `<div class="list-group-item text-muted">載入中…</div>`;
+      const snap = await db.collection(COL).orderBy("createdAt","desc").get();
+      rawList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const kw = document.getElementById("kw").value.trim().toLowerCase();
+      const type = document.getElementById("typeFilter").value;
+      const status = document.getElementById("statusFilter").value;
+      const priority = document.getElementById("priorityFilter").value;
+
+      viewList = rawList.filter(r => {
+        if (type && r.type !== type) return false;
+        if (status && r.status !== status) return false;
+        if (priority && (r.priority || "normal") !== priority) return false;
+        if (kw) {
+          const hay = [
+            r.productTitle || "",
+            r.barcode || "",
+            r.customerName || "",
+            r.phone || "",
+            r.notes || ""
+          ].join(" ").toLowerCase();
+          if (!hay.includes(kw)) return false;
+        }
+        return true;
+      });
+
+      renderList(viewList);
+    }
+
+    function statusBadge(s) {
+      const map = {
+        open: "secondary",
+        ordered: "info",
+        received: "primary",
+        closed: "success",
+        cancelled: "dark"
+      };
+      const cls = map[s] || "secondary";
+      return `<span class="badge bg-${cls} status-badge">${s}</span>`;
+    }
+
+    function rowCheckbox(id) {
+      const checked = selectedIds.has(id) ? "checked" : "";
+      return `<input class="form-check-input" type="checkbox" ${checked} onchange="toggleSelect('${id}', this.checked)">`;
+    }
+
+    async function renderList(list) {
+      const container = document.getElementById("listContainer");
+      container.innerHTML = "";
+      if (!list.length) {
+        container.innerHTML = `<div class="list-group-item text-muted">沒有符合條件的紀錄。</div>`;
+        return;
+      }
+
+      // 先嘗試預抓取 barcode 對應的圖片/連結（限制同屏使用）
+      // 為了效能，這裡採 Lazy lookup：渲染時插入占位，滾動到視區時才查
+      list.forEach(r => {
+        const li = document.createElement("div");
+        li.className = "list-group-item";
+        li.innerHTML = `
+          <div class="d-flex align-items-start gap-3">
+            <div class="form-check mt-1">
+              ${rowCheckbox(r.id)}
+            </div>
+            <img id="th_${r.id}" class="thumb" alt="img">
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center flex-wrap gap-2">
+                <strong class="me-2 truncate-1">${escapeHtml(r.productTitle||"(未填產品)")}</strong>
+                ${statusBadge(r.status || "open")}
+                <span class="badge bg-outline border">${r.type === "restock" ? "補貨" : "預留"}</span>
+                ${r.priority === "high" ? '<span class="badge bg-danger">High</span>' : ""}
+              </div>
+              <div class="small-muted mt-1">
+                條碼：${escapeHtml(r.barcode||"-")}　數量：${Number(r.qty||1)}　
+                客戶：${escapeHtml(r.customerName||"-")}　電話：${escapeHtml(r.phone||"-")}
+              </div>
+              <div class="small-muted">
+                供應商：${escapeHtml(r.supplier||"-")}　ETA：${r.etaDate||"-"}　來源：${r.source||"-"}
+              </div>
+              <div class="text-muted truncate-2">${escapeHtml(r.notes||"")}</div>
+              <div class="mt-2 d-flex flex-wrap gap-2">
+                <a id="pv_${r.id}" href="#" target="_blank" class="btn btn-sm btn-outline-primary disabled"><i class="bi bi-box-arrow-up-right"></i> 商品頁</a>
+                <button id="cp_${r.id}" class="btn btn-sm btn-outline-secondary disabled" onclick="copyShortLink(event,'${r.id}')"><i class="bi bi-clipboard"></i> 複製短鏈</button>
+                <div class="vr"></div>
+                <div class="btn-group">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">設為</button>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="quickStatus('${r.id}','open')">Open</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="quickStatus('${r.id}','ordered')">Ordered</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="quickStatus('${r.id}','received')">Received</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="quickStatus('${r.id}','closed')">Closed</a></li>
+                    <li><a class="dropdown-item text-danger" href="#" onclick="quickStatus('${r.id}','cancelled')">Cancelled</a></li>
+                  </ul>
+                </div>
+                <button class="btn btn-sm btn-outline-dark" onclick="openEdit('${r.id}')"><i class="bi bi-pencil-square"></i> 編輯</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete('${r.id}')"><i class="bi bi-trash"></i></button>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(li);
+
+        // Lazy product lookup
+        lazyProductBind(r);
+      });
+    }
+
+    function toggleSelect(id, on) {
+      if (on) selectedIds.add(id); else selectedIds.delete(id);
+    }
+
+    async function lazyProductBind(r) {
+      try {
+        const prod = await lookupProductByBarcode(r.barcode);
+        const th = document.getElementById(`th_${r.id}`);
+        const pv = document.getElementById(`pv_${r.id}`);
+        const cp = document.getElementById(`cp_${r.id}`);
+
+        if (th && prod?.imageUrl) th.src = prod.imageUrl;
+        if (pv && prod?.productUrl) {
+          pv.href = prod.productUrl;
+          pv.classList.remove("disabled");
+        }
+        if (cp && prod?.shortUrl) {
+          cp.dataset.url = prod.shortUrl;
+          cp.classList.remove("disabled");
+        }
+        // fallback：若沒圖，用占位
+        if (th && !th.src) th.src = "/images/truly_favicon_o1.png";
+      } catch {
+        const th = document.getElementById(`th_${r.id}`);
+        if (th && !th.src) th.src = "/images/truly_favicon_o1.png";
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    async function copyShortLink(evt, id) {
+      const btn = evt.currentTarget;
+      const url = btn?.dataset?.url;
+      if (!url) { alert("短鏈尚未可用（未匹配到商品）。"); return; }
+      try {
+        await navigator.clipboard.writeText(url);
+        const old = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-clipboard-check"></i> 已複製';
+        btn.disabled = true;
+        setTimeout(()=>{ btn.innerHTML = old; btn.disabled = false; }, 1200);
+      } catch(e) {
+        alert("無法複製：" + e);
+      }
+    }
+
+    // ===== Create / Edit =====
+    function openCreate() {
+      document.getElementById("modalTitle").textContent = "新增紀錄";
+      document.getElementById("docId").value = "";
+      document.getElementById("type").value = "reserve";
+      document.getElementById("status").value = "open";
+      document.getElementById("priority").value = "normal";
+      document.getElementById("source").value = "store";
+      ["productTitle","barcode","variantId","qty","customerName","phone","supplier","etaDate","staff","notes"].forEach(id=>{
+        const el = document.getElementById(id);
+        el.value = (id==="qty") ? 1 : "";
+      });
+      document.getElementById("auditInfo").textContent = "";
+    }
+
+    function openEdit(id) {
+      const r = rawList.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById("modalTitle").textContent = "編輯紀錄";
+      document.getElementById("docId").value = r.id;
+      document.getElementById("type").value = r.type || "reserve";
+      document.getElementById("status").value = r.status || "open";
+      document.getElementById("priority").value = r.priority || "normal";
+      document.getElementById("source").value = r.source || "store";
+      document.getElementById("productTitle").value = r.productTitle || "";
+      document.getElementById("barcode").value = r.barcode || "";
+      document.getElementById("variantId").value = r.variantId || "";
+      document.getElementById("qty").value = r.qty || 1;
+      document.getElementById("customerName").value = r.customerName || "";
+      document.getElementById("phone").value = r.phone || "";
+      document.getElementById("supplier").value = r.supplier || "";
+      document.getElementById("etaDate").value = r.etaDate || "";
+      document.getElementById("staff").value = r.staff || "";
+      document.getElementById("notes").value = r.notes || "";
+      const created = r.createdAt?.toDate ? r.createdAt.toDate() : (r.createdAt ? new Date(r.createdAt) : null);
+      const updated = r.updatedAt?.toDate ? r.updatedAt.toDate() : (r.updatedAt ? new Date(r.updatedAt) : null);
+      document.getElementById("auditInfo").textContent =
+        `建立：${created? created.toLocaleString(): "-"}　更新：${updated? updated.toLocaleString(): "-"}`;
+      new bootstrap.Modal(document.getElementById("editModal")).show();
+    }
+
+    async function saveRecord(e) {
+      e.preventDefault();
+      const id = document.getElementById("docId").value.trim();
+      const payload = {
+        type: document.getElementById("type").value,
+        status: document.getElementById("status").value,
+        priority: document.getElementById("priority").value || "normal",
+        source: document.getElementById("source").value || "store",
+        productTitle: document.getElementById("productTitle").value.trim(),
+        barcode: String(document.getElementById("barcode").value).trim(),
+        variantId: String(document.getElementById("variantId").value).trim(),
+        qty: Number(document.getElementById("qty").value || 1),
+        customerName: document.getElementById("customerName").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        supplier: document.getElementById("supplier").value.trim(),
+        etaDate: document.getElementById("etaDate").value,
+        staff: document.getElementById("staff").value.trim(),
+        notes: document.getElementById("notes").value.trim(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if (!id) {
+        payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        await db.collection(COL).add(payload);
+      } else {
+        await db.collection(COL).doc(id).set(payload, { merge:true });
+      }
+      bootstrap.Modal.getInstance(document.getElementById("editModal")).hide();
+      refreshList();
+    }
+
+    // ===== Quick status / Delete =====
+    async function quickStatus(id, status) {
+      await db.collection(COL).doc(id).set({
+        status,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
+      refreshList();
+    }
+
+    function confirmDelete(id) {
+      delTargetId = id;
+      new bootstrap.Modal(document.getElementById("confirmDelModal")).show();
+    }
+
+    document.getElementById("btnDoDelete").addEventListener("click", async ()=>{
+      if (!delTargetId) return;
+      await db.collection(COL).doc(delTargetId).delete();
+      delTargetId = null;
+      bootstrap.Modal.getInstance(document.getElementById("confirmDelModal")).hide();
+      refreshList();
+    });
+
+    // ===== Bulk ops =====
+    async function bulkChangeStatus(status) {
+      if (!selectedIds.size) { alert("請先勾選項目。"); return; }
+      const batch = db.batch();
+      selectedIds.forEach(id=>{
+        const ref = db.collection(COL).doc(id);
+        batch.set(ref, { status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge:true });
+      });
+      await batch.commit();
+      selectedIds.clear();
+      refreshList();
+    }
+
+    // ===== Export CSV =====
+    function exportCSV() {
+      const rows = [["id","type","status","priority","source","productTitle","barcode","variantId","qty","customerName","phone","supplier","etaDate","staff","notes","createdAt","updatedAt"]];
+      (viewList.length? viewList: rawList).forEach(r=>{
+        const cAt = r.createdAt?.toDate ? r.createdAt.toDate() : (r.createdAt? new Date(r.createdAt): "");
+        const uAt = r.updatedAt?.toDate ? r.updatedAt.toDate() : (r.updatedAt? new Date(r.updatedAt): "");
+        rows.push([
+          r.id, r.type||"", r.status||"", r.priority||"", r.source||"",
+          (r.productTitle||"").replaceAll('"','""'),
+          r.barcode||"", r.variantId||"", r.qty||"",
+          (r.customerName||"").replaceAll('"','""'),
+          r.phone||"", r.supplier||"", r.etaDate||"", r.staff||"",
+          (r.notes||"").replaceAll('"','""'),
+          cAt? cAt.toISOString():"", uAt? uAt.toISOString():""
+        ]);
+      });
+      const csv = rows.map(r=> r.map(v=> `"${String(v??"")}"`).join(",")).join("\r\n");
+      const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "reservations_export.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    // ===== Init =====
+    refreshList();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
