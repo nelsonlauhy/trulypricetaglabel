@@ -77,7 +77,7 @@
     <!-- Toolbar -->
     <div class="toolbar row g-2 mb-2">
       <div class="col-12 col-md-3">
-        <input id="kw" type="text" class="form-control" placeholder="搜尋：產品名 / 條碼 / 客戶 / 電話 / Email" oninput="applyFilters()">
+        <input id="kw" type="text" class="form-control" placeholder="搜尋：產品名 / 條碼 / 客戶 / 電話 / Email / reserveID" oninput="applyFilters()">
       </div>
       <div class="col-6 col-md-2">
         <select id="typeFilter" class="form-select" onchange="applyFilters()">
@@ -344,6 +344,13 @@
       return { imageUrl: d["Image URL"] || "", productUrl: d["Product URL"] || d.ProductURL || "", shortUrl };
     }
 
+    // ===== reserveID generator (R + timestamp + 3-digit random) =====
+    function genReserveID() {
+      const t = Date.now(); // milliseconds since epoch
+      const rnd = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      return `R${t}${rnd}`;
+    }
+
     // ===== Totals =====
     function updateStats(list){
       const items = list.length;
@@ -382,7 +389,8 @@
             r.customerName || "",
             r.phone || "",
             r.email || "",
-            r.notes || ""
+            r.notes || "",
+            r.reserveID || ""
           ].join(" ").toLowerCase();
           if (!hay.includes(kw)) return false;
         }
@@ -390,7 +398,7 @@
       });
 
       renderList(viewList);
-      updateStats(viewList); // <-- update totals for current filtered list
+      updateStats(viewList);
     }
 
     function rowCheckbox(id) {
@@ -418,6 +426,7 @@
               <div class="d-flex align-items-center flex-wrap gap-2">
                 <strong class="me-2 truncate-1">${escapeHtml(r.productTitle||"(未填產品)")}</strong>
                 ${qtyBadge(r.qty)}
+                <span class="badge text-bg-light border"><i class="bi bi-hash"></i> ${escapeHtml(r.reserveID || "—")}</span>
                 ${statusBadge(r.status || "open")}
                 ${typeBadge(r.type)}
                 ${r.priority === "high" ? '<span class="badge bg-danger">High</span>' : ""}
@@ -578,12 +587,17 @@
         notes: document.getElementById("notes").value.trim(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
+
       if (!id) {
+        // New record → generate reserveID
+        payload.reserveID = genReserveID();
         payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         await db.collection(COL).add(payload);
       } else {
+        // Existing record → keep current reserveID (do not overwrite)
         await db.collection(COL).doc(id).set(payload, { merge:true });
       }
+
       bootstrap.Modal.getInstance(document.getElementById("editModal")).hide();
       refreshList();
     }
@@ -625,13 +639,13 @@
 
     // ===== Export CSV (UTF-8 BOM) =====
     function exportCSV() {
-      const header = ["id","type","status","priority","source","productTitle","barcode","qty","customerName","phone","email","etaDate","staff","notes","createdAt","updatedAt"];
+      const header = ["id","reserveID","type","status","priority","source","productTitle","barcode","qty","customerName","phone","email","etaDate","staff","notes","createdAt","updatedAt"];
       const rows = [header];
       (viewList.length? viewList: rawList).forEach(r=>{
         const cAt = r.createdAt?.toDate ? r.createdAt.toDate() : (r.createdAt? new Date(r.createdAt): "");
         const uAt = r.updatedAt?.toDate ? r.updatedAt.toDate() : (r.updatedAt? new Date(r.updatedAt): "");
         rows.push([
-          r.id, r.type||"", r.status||"", r.priority||"", r.source||"",
+          r.id, r.reserveID||"", r.type||"", r.status||"", r.priority||"", r.source||"",
           r.productTitle||"", r.barcode||"", r.qty||"",
           r.customerName||"", r.phone||"", r.email||"", r.etaDate||"", r.staff||"",
           r.notes||"", cAt? cAt.toISOString():"", uAt? uAt.toISOString():""
