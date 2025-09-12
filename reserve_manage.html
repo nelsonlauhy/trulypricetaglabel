@@ -50,6 +50,13 @@
 
     /* Hide any empty Bootstrap badges/pills */
     .badge:empty { display: none !important; }
+
+    /* Bigger QTY badge */
+    .qty-badge{
+      font-size: 1rem;          /* bigger text */
+      padding: .4em .65em;      /* slightly more padding */
+      line-height: 1;           /* keep compact */
+    }
   </style>
 </head>
 <body>
@@ -300,7 +307,7 @@
       return fromUrl || "";
     }
 
-    // ✅ type badge (預留/補貨)
+    // type & status & qty badges
     function typeBadge(t) {
       if (!t) return "";
       const isRestock = String(t).toLowerCase() === "restock";
@@ -308,21 +315,12 @@
       const cls = isRestock ? "text-bg-warning" : "text-bg-info";
       return `<span class="badge ${cls} border">${label}</span>`;
     }
-
-    // ✅ qty badge (顯示在 Title 旁)
     function qtyBadge(q) {
       const n = Number(q || 1);
-      return `<span class="badge bg-light text-dark">x${n}</span>`;
+      return `<span class="badge bg-light text-dark qty-badge fw-bold">x${n}</span>`;
     }
-
     function statusBadge(s) {
-      const map = {
-        open: "secondary",
-        ordered: "info",
-        received: "primary",
-        closed: "success",
-        cancelled: "dark"
-      };
+      const map = { open:"secondary", ordered:"info", received:"primary", closed:"success", cancelled:"dark" };
       const cls = map[s] || "secondary";
       return `<span class="badge bg-${cls} status-badge">${s}</span>`;
     }
@@ -334,11 +332,7 @@
       const d = q.docs[0].data();
       const handle = resolveHandle(d);
       const shortUrl = handle ? (SHORT_LINK_PREFIX + handle) : "";
-      return {
-        imageUrl: d["Image URL"] || "",
-        productUrl: d["Product URL"] || d.ProductURL || "",
-        shortUrl,
-      };
+      return { imageUrl: d["Image URL"] || "", productUrl: d["Product URL"] || d.ProductURL || "", shortUrl };
     }
 
     // ===== Load list =====
@@ -407,10 +401,14 @@
                 ${r.priority === "high" ? '<span class="badge bg-danger">High</span>' : ""}
               </div>
               <div class="small-muted mt-1">
-                客戶：${escapeHtml(r.customerName||"-")}　電話：${escapeHtml(r.phone||"-")}　Email：${escapeHtml(r.email||"-")}
+                客戶：<span class="fw-bold">${escapeHtml(r.customerName||"-")}</span>　
+                電話：<span class="fw-bold">${escapeHtml(r.phone||"-")}</span>　
+                Email：<span class="fw-bold">${escapeHtml(r.email||"-")}</span>
               </div>
               <div class="small-muted">
-                ETA：${r.etaDate||"-"}　來源：${r.source||"-"}　經手：${escapeHtml(r.staff||"-")}
+                ETA：<span class="fw-bold">${escapeHtml(r.etaDate||"-")}</span>　
+                來源：<span class="fw-bold">${escapeHtml(r.source||"-")}</span>　
+                經手：<span class="fw-bold">${escapeHtml(r.staff||"-")}</span>
               </div>
               <div class="text-muted truncate-2">${escapeHtml(r.notes||"")}</div>
               <div class="mt-2 d-flex flex-wrap gap-2">
@@ -702,7 +700,7 @@
           document.getElementById("notes").value = (curNotes? (curNotes + " ") : "") + p.ProductNameChi;
         }
       }
-      document.getElementById("barcode").value = p.Barcode || "";
+      document.getElementById("barcode").value = p.Barcode || ""
       document.getElementById("prodSearch").value = "";
       hideProdResults();
       setTimeout(()=> document.getElementById("qty").focus(), 50);
