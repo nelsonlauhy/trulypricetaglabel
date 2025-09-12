@@ -47,6 +47,11 @@
         overflow:auto;
       }
     }
+
+    /* Hide any empty Bootstrap badges/pills */
+    .badge:empty {
+        display: none !important;
+    }
   </style>
 </head>
 <body>
@@ -398,7 +403,6 @@
               <div class="text-muted truncate-2">${escapeHtml(r.notes||"")}</div>
               <div class="mt-2 d-flex flex-wrap gap-2">
                 <a id="pv_${r.id}" href="#" target="_blank" class="btn btn-sm btn-outline-primary disabled"><i class="bi bi-box-arrow-up-right"></i> 商品頁</a>
-                <button id="cp_${r.id}" class="btn btn-sm btn-outline-secondary disabled" onclick="copyShortLink(event,'${r.id}')"><i class="bi bi-clipboard"></i> 複製短鏈</button>
                 <div class="vr"></div>
                 <div class="btn-group">
                   <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">設為</button>
