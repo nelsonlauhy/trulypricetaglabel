@@ -344,10 +344,11 @@
       return { imageUrl: d["Image URL"] || "", productUrl: d["Product URL"] || d.ProductURL || "", shortUrl };
     }
 
-    // ===== reserveID generator (R + timestamp + 3-digit random) =====
+    // ===== reserveID generator (short): R + base36(timestamp) + 2-char base36 random =====
     function genReserveID() {
-      const t = Date.now(); // milliseconds since epoch
-      const rnd = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      const t = Date.now().toString(36).toUpperCase();           // ~8 chars
+      const rnd = Math.floor(Math.random() * 1296)               // 0..1295
+                    .toString(36).toUpperCase().padStart(2, '0'); // 2 chars
       return `R${t}${rnd}`;
     }
 
@@ -426,7 +427,6 @@
               <div class="d-flex align-items-center flex-wrap gap-2">
                 <strong class="me-2 truncate-1">${escapeHtml(r.productTitle||"(未填產品)")}</strong>
                 ${qtyBadge(r.qty)}
-                <span class="badge text-bg-light border"><i class="bi bi-hash"></i> ${escapeHtml(r.reserveID || "—")}</span>
                 ${statusBadge(r.status || "open")}
                 ${typeBadge(r.type)}
                 ${r.priority === "high" ? '<span class="badge bg-danger">High</span>' : ""}
@@ -439,7 +439,8 @@
               <div class="small-muted">
                 ETA：<span class="fw-bold">${escapeHtml(r.etaDate||"-")}</span>　
                 來源：<span class="fw-bold">${escapeHtml(r.source||"-")}</span>　
-                經手：<span class="fw-bold">${escapeHtml(r.staff||"-")}</span>
+                經手：<span class="fw-bold">${escapeHtml(r.staff||"-")}</span>　
+                預留單號：<span class="fw-bold">${escapeHtml(r.reserveID || "—")}</span>
               </div>
               <div class="text-muted truncate-2">${escapeHtml(r.notes||"")}</div>
               <div class="mt-2 d-flex flex-wrap gap-2">
@@ -589,12 +590,18 @@
       };
 
       if (!id) {
-        // New record → generate reserveID
-        payload.reserveID = genReserveID();
+        // New record → generate short reserveID and ensure uniqueness
+        let reserveID = genReserveID();
+        for (let i = 0; i < 5; i++) {
+          const dup = await db.collection(COL).where("reserveID","==",reserveID).limit(1).get();
+          if (dup.empty) break;
+          reserveID = genReserveID();
+        }
+        payload.reserveID = reserveID;
         payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         await db.collection(COL).add(payload);
       } else {
-        // Existing record → keep current reserveID (do not overwrite)
+        // Existing record → do not overwrite reserveID
         await db.collection(COL).doc(id).set(payload, { merge:true });
       }
 
