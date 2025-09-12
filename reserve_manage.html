@@ -38,6 +38,15 @@
     .prod-item:hover, .prod-item.active { background:#f1f3f5; }
     .prod-badge { font-size:.75rem; }
     .form-text-compact { margin-top:.25rem; font-size:.8rem; color:#6c757d; }
+
+    /* Mobile modal scroll fix */
+    .modal .modal-body { -webkit-overflow-scrolling: touch; }
+    @media (max-width: 576px){
+      .modal .modal-body{
+        max-height: calc(100vh - 160px); /* header+footer 高度預留 */
+        overflow:auto;
+      }
+    }
   </style>
 </head>
 <body>
@@ -58,7 +67,7 @@
     <!-- Toolbar -->
     <div class="toolbar row g-2 mb-3">
       <div class="col-12 col-md-3">
-        <input id="kw" type="text" class="form-control" placeholder="搜尋：產品名 / 條碼 / 客戶 / 電話" oninput="applyFilters()">
+        <input id="kw" type="text" class="form-control" placeholder="搜尋：產品名 / 條碼 / 客戶 / 電話 / Email" oninput="applyFilters()">
       </div>
       <div class="col-6 col-md-2">
         <select id="typeFilter" class="form-select" onchange="applyFilters()">
@@ -105,9 +114,10 @@
 
   <!-- Create/Edit Modal -->
   <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <!-- 全螢幕（<=sm）+ 可捲動 -->
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
       <div class="modal-content">
-        <form id="editForm" onsubmit="saveRecord(event)">
+        <form id="editForm" onsubmit="saveRecord(event)" novalidate>
           <div class="modal-header">
             <h5 class="modal-title" id="modalTitle">新增紀錄</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -170,26 +180,34 @@
                 <label class="form-label">數量</label>
                 <input id="qty" type="number" min="1" step="1" class="form-control" value="1" required>
               </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">客戶姓名</label>
-                <input id="customerName" type="text" class="form-control" placeholder="客戶名稱">
+
+              <div class="col-6 col-md-4">
+                <label class="form-label">客戶姓名 <span class="text-danger">*</span></label>
+                <input id="customerName" type="text" class="form-control" placeholder="客戶名稱" required>
+                <div class="invalid-feedback">請填寫客戶姓名</div>
               </div>
-              <div class="col-6 col-md-3">
+              <div class="col-6 col-md-4">
                 <label class="form-label">電話</label>
                 <input id="phone" type="text" class="form-control" placeholder="電話">
               </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">客戶 Email</label>
+                <input id="email" type="email" class="form-control" placeholder="email@example.com">
+              </div>
 
-              <div class="col-6 col-md-3">
+              <div class="col-6 col-md-4">
                 <label class="form-label">預計到貨</label>
                 <input id="etaDate" type="date" class="form-control">
               </div>
-              <div class="col-6 col-md-3">
-                <label class="form-label">經手員工</label>
-                <input id="staff" type="text" class="form-control" placeholder="Staff">
+              <div class="col-6 col-md-4">
+                <label class="form-label">經手員工 <span class="text-danger">*</span></label>
+                <input id="staff" type="text" class="form-control" placeholder="Staff" required>
+                <div class="invalid-feedback">請填寫經手員工</div>
               </div>
+
               <div class="col-12">
                 <label class="form-label">備註</label>
-                <textarea id="notes" rows="2" class="form-control" placeholder="Notes"></textarea>
+                <textarea id="notes" rows="3" class="form-control" placeholder="Notes"></textarea>
               </div>
 
               <div class="col-12 small-muted">
@@ -223,7 +241,7 @@
   </div>
 
   <script>
-    // ===== Firebase Config (沿用你現有設定) =====
+    // ===== Firebase Config =====
     const firebaseConfig = {
       apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
       authDomain: "trulymarket-c25b6.firebaseapp.com",
@@ -237,17 +255,17 @@
     const db = firebase.firestore();
 
     // ===== Globals =====
-    const COL = "cust_reservations";          // 管理集合
-    const PRODUCT_COL = "pricetaglabel";      // 產品資料來源
+    const COL = "cust_reservations";
+    const PRODUCT_COL = "pricetaglabel";
     const SHORT_LINK_PREFIX = "https://trulymarket.ca/products/";
-    let rawList = [];      // 全部資料
-    let viewList = [];     // 篩選後資料
+    let rawList = [];
+    let viewList = [];
     let selectedIds = new Set();
     let delTargetId = null;
 
     // Product cache for search
-    let productsCache = [];   // [{Title, ProductNameEng, ProductNameChi, Barcode, Image URL, Product URL, Handle/handle}]
-    let prodActiveIndex = -1; // keyboard navigation
+    let productsCache = [];
+    let prodActiveIndex = -1;
 
     // navbar 高亮
     fetch("/navbar.html")
@@ -261,7 +279,7 @@
         });
       });
 
-    // ===== Helpers for short link / image resolve from pricetaglabel =====
+    // ===== Helpers =====
     function extractHandleFromUrl(url) {
       if (!url) return "";
       try {
@@ -291,9 +309,6 @@
         imageUrl: d["Image URL"] || "",
         productUrl: d["Product URL"] || d.ProductURL || "",
         shortUrl,
-        productNameEng: d.ProductNameEng || d.Title || "",
-        productNameChi: d.ProductNameChi || "",
-        price: d.Price || null
       };
     }
 
@@ -322,6 +337,7 @@
             r.barcode || "",
             r.customerName || "",
             r.phone || "",
+            r.email || "",
             r.notes || ""
           ].join(" ").toLowerCase();
           if (!hay.includes(kw)) return false;
@@ -374,7 +390,7 @@
               </div>
               <div class="small-muted mt-1">
                 條碼：${escapeHtml(r.barcode||"-")}　數量：${Number(r.qty||1)}　
-                客戶：${escapeHtml(r.customerName||"-")}　電話：${escapeHtml(r.phone||"-")}
+                客戶：${escapeHtml(r.customerName||"-")}　電話：${escapeHtml(r.phone||"-")}　Email：${escapeHtml(r.email||"-")}
               </div>
               <div class="small-muted">
                 ETA：${r.etaDate||"-"}　來源：${r.source||"-"}　經手：${escapeHtml(r.staff||"-")}
@@ -459,7 +475,7 @@
       document.getElementById("status").value = "open";
       document.getElementById("priority").value = "normal";
       document.getElementById("source").value = "store";
-      ["productTitle","barcode","qty","customerName","phone","etaDate","staff","notes","prodSearch"].forEach(id=>{
+      ["productTitle","barcode","qty","customerName","phone","email","etaDate","staff","notes","prodSearch"].forEach(id=>{
         const el = document.getElementById(id);
         if (!el) return;
         el.value = (id==="qty") ? 1 : "";
@@ -483,6 +499,7 @@
       document.getElementById("qty").value = r.qty || 1;
       document.getElementById("customerName").value = r.customerName || "";
       document.getElementById("phone").value = r.phone || "";
+      document.getElementById("email").value = r.email || "";
       document.getElementById("etaDate").value = r.etaDate || "";
       document.getElementById("staff").value = r.staff || "";
       document.getElementById("notes").value = r.notes || "";
@@ -495,8 +512,19 @@
       new bootstrap.Modal(document.getElementById("editModal")).show();
     }
 
+    function validateForm() {
+      const form = document.getElementById("editForm");
+      if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return false;
+      }
+      return true;
+    }
+
     async function saveRecord(e) {
       e.preventDefault();
+      if (!validateForm()) return;
+
       const id = document.getElementById("docId").value.trim();
       const payload = {
         type: document.getElementById("type").value,
@@ -508,6 +536,7 @@
         qty: Number(document.getElementById("qty").value || 1),
         customerName: document.getElementById("customerName").value.trim(),
         phone: document.getElementById("phone").value.trim(),
+        email: document.getElementById("email").value.trim(),
         etaDate: document.getElementById("etaDate").value,
         staff: document.getElementById("staff").value.trim(),
         notes: document.getElementById("notes").value.trim(),
@@ -558,9 +587,9 @@
       refreshList();
     }
 
-    // ===== Export CSV (UTF-8 BOM to fix Excel中文亂碼) =====
+    // ===== Export CSV (UTF-8 BOM) =====
     function exportCSV() {
-      const header = ["id","type","status","priority","source","productTitle","barcode","qty","customerName","phone","etaDate","staff","notes","createdAt","updatedAt"];
+      const header = ["id","type","status","priority","source","productTitle","barcode","qty","customerName","phone","email","etaDate","staff","notes","createdAt","updatedAt"];
       const rows = [header];
       (viewList.length? viewList: rawList).forEach(r=>{
         const cAt = r.createdAt?.toDate ? r.createdAt.toDate() : (r.createdAt? new Date(r.createdAt): "");
@@ -568,13 +597,12 @@
         rows.push([
           r.id, r.type||"", r.status||"", r.priority||"", r.source||"",
           r.productTitle||"", r.barcode||"", r.qty||"",
-          r.customerName||"", r.phone||"", r.etaDate||"", r.staff||"",
+          r.customerName||"", r.phone||"", r.email||"", r.etaDate||"", r.staff||"",
           r.notes||"", cAt? cAt.toISOString():"", uAt? uAt.toISOString():""
         ]);
       });
-      // 逐格安全處理，引號轉義
       const csv = rows.map(r=> r.map(v=> `"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\r\n");
-      const bom = "\uFEFF"; // UTF-8 BOM
+      const bom = "\uFEFF";
       const blob = new Blob([bom + csv], {type:"text/csv;charset=utf-8;"});
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
