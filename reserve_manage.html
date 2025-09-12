@@ -43,14 +43,13 @@
     .modal .modal-body { -webkit-overflow-scrolling: touch; }
     @media (max-width: 576px){
       .modal .modal-body{
-        max-height: calc(100vh - 160px); /* header+footer 高度預留 */
+        max-height: calc(100vh - 160px);
         overflow:auto;
       }
     }
 
-    .badge:empty {
-      display: none !important;
-    }
+    /* Hide any empty Bootstrap badges/pills */
+    .badge:empty { display: none !important; }
   </style>
 </head>
 <body>
@@ -118,7 +117,6 @@
 
   <!-- Create/Edit Modal -->
   <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-    <!-- 全螢幕（<=sm）+ 可捲動 -->
     <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
       <div class="modal-content">
         <form id="editForm" onsubmit="saveRecord(event)" novalidate>
@@ -283,15 +281,6 @@
         });
       });
 
-    // ✅ 新增 typeBadge
-    function typeBadge(t) {
-      if (!t) return "";
-      const isRestock = String(t).toLowerCase() === "restock";
-      const label = isRestock ? "補貨" : "預留";
-      const cls = isRestock ? "text-bg-warning" : "text-bg-info";
-      return `<span class="badge ${cls} border">${label}</span>`;
-    }
-
     // ===== Helpers =====
     function extractHandleFromUrl(url) {
       if (!url) return "";
@@ -309,6 +298,28 @@
       if (direct) return direct.trim();
       const fromUrl = extractHandleFromUrl(p["Product URL"] || p.ProductURL || "");
       return fromUrl || "";
+    }
+
+    // ✅ fix: type badge helper (no more blank tag)
+    function typeBadge(t) {
+      if (!t) return "";
+      const isRestock = String(t).toLowerCase() === "restock";
+      const label = isRestock ? "補貨" : "預留";
+      // choose any you like; both are visible on white bg
+      const cls = isRestock ? "text-bg-warning" : "text-bg-info";
+      return `<span class="badge ${cls} border">${label}</span>`;
+    }
+
+    function statusBadge(s) {
+      const map = {
+        open: "secondary",
+        ordered: "info",
+        received: "primary",
+        closed: "success",
+        cancelled: "dark"
+      };
+      const cls = map[s] || "secondary";
+      return `<span class="badge bg-${cls} status-badge">${s}</span>`;
     }
 
     async function lookupProductByBarcode(barcode) {
@@ -361,18 +372,6 @@
       renderList(viewList);
     }
 
-    function statusBadge(s) {
-      const map = {
-        open: "secondary",
-        ordered: "info",
-        received: "primary",
-        closed: "success",
-        cancelled: "dark"
-      };
-      const cls = map[s] || "secondary";
-      return `<span class="badge bg-${cls} status-badge">${s}</span>`;
-    }
-
     function rowCheckbox(id) {
       const checked = selectedIds.has(id) ? "checked" : "";
       return `<input class="form-check-input" type="checkbox" ${checked} onchange="toggleSelect('${id}', this.checked)">`;
@@ -391,23 +390,45 @@
         li.innerHTML = `
           <div class="d-flex align-items-start gap-3">
             <div class="form-check mt-1">
-              <input class="form-check-input" type="checkbox">
+              ${rowCheckbox(r.id)}
             </div>
             <img id="th_${r.id}" class="thumb" alt="img">
             <div class="flex-grow-1">
               <div class="d-flex align-items-center flex-wrap gap-2">
-                <strong class="me-2 truncate-1">${r.productTitle || "(未填產品)"}</strong>
+                <strong class="me-2 truncate-1">${escapeHtml(r.productTitle||"(未填產品)")}</strong>
                 ${statusBadge(r.status || "open")}
                 ${typeBadge(r.type)}
+                ${r.priority === "high" ? '<span class="badge bg-danger">High</span>' : ""}
               </div>
               <div class="small-muted mt-1">
-                條碼：${r.barcode||"-"}　數量：${r.qty||1}　
-                客戶：${r.customerName||"-"}　電話：${r.phone||"-"}　Email：${r.email||"-"}
+                條碼：${escapeHtml(r.barcode||"-")}　數量：${Number(r.qty||1)}　
+                客戶：${escapeHtml(r.customerName||"-")}　電話：${escapeHtml(r.phone||"-")}　Email：${escapeHtml(r.email||"-")}
+              </div>
+              <div class="small-muted">
+                ETA：${r.etaDate||"-"}　來源：${r.source||"-"}　經手：${escapeHtml(r.staff||"-")}
+              </div>
+              <div class="text-muted truncate-2">${escapeHtml(r.notes||"")}</div>
+              <div class="mt-2 d-flex flex-wrap gap-2">
+                <a id="pv_${r.id}" href="#" target="_blank" class="btn btn-sm btn-outline-primary disabled"><i class="bi bi-box-arrow-up-right"></i> 商品頁</a>
+                <div class="vr"></div>
+                <div class="btn-group">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">設為</button>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="quickStatus('${r.id}','open')">Open</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="quickStatus('${r.id}','ordered')">Ordered</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="quickStatus('${r.id}','received')">Received</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="quickStatus('${r.id}','closed')">Closed</a></li>
+                    <li><a class="dropdown-item text-danger" href="#" onclick="quickStatus('${r.id}','cancelled')">Cancelled</a></li>
+                  </ul>
+                </div>
+                <button class="btn btn-sm btn-outline-dark" onclick="openEdit('${r.id}')"><i class="bi bi-pencil-square"></i> 編輯</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete('${r.id}')"><i class="bi bi-trash"></i></button>
               </div>
             </div>
           </div>
         `;
         container.appendChild(li);
+        lazyProductBind(r);
       });
     }
 
