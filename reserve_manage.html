@@ -300,14 +300,19 @@
       return fromUrl || "";
     }
 
-    // ✅ fix: type badge helper (no more blank tag)
+    // ✅ type badge (預留/補貨)
     function typeBadge(t) {
       if (!t) return "";
       const isRestock = String(t).toLowerCase() === "restock";
       const label = isRestock ? "補貨" : "預留";
-      // choose any you like; both are visible on white bg
       const cls = isRestock ? "text-bg-warning" : "text-bg-info";
       return `<span class="badge ${cls} border">${label}</span>`;
+    }
+
+    // ✅ qty badge (顯示在 Title 旁)
+    function qtyBadge(q) {
+      const n = Number(q || 1);
+      return `<span class="badge bg-light text-dark">x${n}</span>`;
     }
 
     function statusBadge(s) {
@@ -396,12 +401,12 @@
             <div class="flex-grow-1">
               <div class="d-flex align-items-center flex-wrap gap-2">
                 <strong class="me-2 truncate-1">${escapeHtml(r.productTitle||"(未填產品)")}</strong>
+                ${qtyBadge(r.qty)}
                 ${statusBadge(r.status || "open")}
                 ${typeBadge(r.type)}
                 ${r.priority === "high" ? '<span class="badge bg-danger">High</span>' : ""}
               </div>
               <div class="small-muted mt-1">
-                條碼：${escapeHtml(r.barcode||"-")}　數量：${Number(r.qty||1)}　
                 客戶：${escapeHtml(r.customerName||"-")}　電話：${escapeHtml(r.phone||"-")}　Email：${escapeHtml(r.email||"-")}
               </div>
               <div class="small-muted">
