@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>分銷商提貨管理 · Truly</title>
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <!-- ZXing (可選，用於掃碼新增貨品) -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+
+  <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
+
+  <style>
+    body { background:#f8f9fa; }
+    .page-title { display:flex; align-items:center; gap:.5rem; }
+    .filter-row { gap:.5rem; }
+    .list-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .badge-dot { width:.5rem; height:.5rem; display:inline-block; border-radius:50%; margin-right:.35rem; }
+    .status-open { background:#0d6efd; }
+    .status-picked { background:#198754; }
+    .status-cancel { background:#6c757d; }
+    .item-chip { border:1px solid #dee2e6; border-radius:999px; padding:.125rem .5rem; font-size:.85rem; background:#fff; }
+    .truncate { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .table-items td, .table-items th { vertical-align: middle; }
+    .required::after { content:" *"; color:#dc3545; }
+    #clearSearchBtn { position:absolute; right:3rem; top:50%; transform:translateY(-50%); cursor:pointer; color:#888; font-size:1.2rem; display:none; }
+  </style>
+</head>
+<body class="bg-light">
+  <!-- Navbar（沿用現有） -->
+  <div id="navbarContainer"></div>
+
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="page-title">
+        <i class="bi bi-box-seam"></i>
+        <h4 class="m-0">分銷商提貨管理</h4>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary" onclick="openNewPickup()">
+          <i class="bi bi-plus-lg"></i> 新增提貨記錄
+        </button>
+        <button class="btn btn-outline-secondary" onclick="exportCSV()">
+          <i class="bi bi-filetype-csv"></i> 匯出 CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- 篩選與搜尋 -->
+    <div class="row filter-row align-items-center mb-3">
+      <div class="col-12 col-md-5">
+        <div class="input-group position-relative">
+          <input id="searchInput" type="text" class="form-control" placeholder="搜尋：分銷商名稱／公司／電話／備註／貨品" />
+          <span id="clearSearchBtn" onclick="clearSearch()">&times;</span>
+          <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#scanModal" title="掃描條碼加入貨品至草稿">
+            <i class="bi bi-upc-scan"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <select id="statusFilter" class="form-select" onchange="applyFilters()">
+          <option value="ALL">狀態：全部</option>
+          <option value="OPEN">未提貨</option>
+          <option value="PICKED">已提貨</option>
+          <option value="CANCELLED">已取消</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <input id="dateFrom" type="date" class="form-control" onchange="applyFilters()" title="開始日期" />
+      </div>
+      <div class="col-6 col-md-2 mt-2 mt-md-0">
+        <input id="dateTo" type="date" class="form-control" onchange="applyFilters()" title="結束日期" />
+      </div>
+    </div>
+
+    <!-- 統計摘要 -->
+    <div class="mb-3 small text-muted" id="summaryBar">載入中…</div>
+
+    <!-- 清單 -->
+    <div id="listContainer" class="list-group shadow-sm">
+      <div class="list-group-item text-muted">載入中…</div>
+    </div>
+  </div>
+
+  <!-- 新增／編輯 Modal -->
+  <div class="modal fade" id="pickupModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <form id="pickupForm" onsubmit="savePickup(event)">
+          <div class="modal-header">
+            <h5 class="modal-title" id="pickupModalTitle">新增提貨記錄</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="docId" />
+
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label required">分銷商名稱</label>
+                <input id="distributorName" type="text" class="form-control" required />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">公司名稱</label>
+                <input id="distributorCompany" type="text" class="form-control" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">電話</label>
+                <input id="distributorPhone" type="text" class="form-control" />
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label required">提貨日期</label>
+                <input id="pickupDate" type="date" class="form-control" required />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label required">狀態</label>
+                <select id="status" class="form-select" required>
+                  <option value="OPEN">未提貨</option>
+                  <option value="PICKED">已提貨</option>
+                  <option value="CANCELLED">已取消</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">備註</label>
+                <input id="notes" type="text" class="form-control" placeholder="可輸入車牌、聯絡人、付款方式等" />
+              </div>
+            </div>
+
+            <hr class="my-4" />
+
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="m-0"><i class="bi bi-bag"></i> 提貨貨品</h6>
+              <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#scanModal">
+                  <i class="bi bi-upc-scan"></i> 掃描加入
+                </button>
+                <button class="btn btn-sm btn-primary" type="button" onclick="addItemRow()">
+                  <i class="bi bi-plus-lg"></i> 新增行
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-sm align-middle table-items">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width:20%">貨品名稱</th>
+                    <th style="width:15%">條碼</th>
+                    <th style="width:10%">數量</th>
+                    <th style="width:35%">產品連結（可選）</th>
+                    <th style="width:10%">圖片（可選）</th>
+                    <th style="width:10%">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="itemsTbody">
+                  <!-- 動態插入 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="submit" class="btn btn-primary">儲存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 掃碼 Modal（可選） -->
+  <div class="modal fade" id="scanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">掃描條碼／QR</h5>
+          <div class="d-flex align-items-center">
+            <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="switchCamera()">🔁 轉鏡頭</button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopScan()"></button>
+          </div>
+        </div>
+        <div class="modal-body">
+          <video id="qr-video" style="width:100%;height:auto;"></video>
+          <div class="form-text">掃描後會在貨品清單新增一行，並嘗試從商品庫填充名稱。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Firebase 初始化（沿用你現有配置） =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
+      authDomain: "trulymarket-c25b6.firebaseapp.com",
+      projectId: "trulymarket-c25b6",
+      storageBucket: "trulymarket-c25b6.firebasestorage.app",
+      messagingSenderId: "810610286008",
+      appId: "1:810610286008:web:847f3bc2c441e103a1434d",
+      measurementId: "G-KWN9XQD8K5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ===== 全域變數 =====
+    const COLLECTION = 'distributor_pickups'; // 分銷商提貨集合
+    let allDocs = [];
+    let filteredDocs = [];
+    let codeReader = null, videoDevices = [], selectedDeviceId = null, currentDeviceIndex = 0;
+
+    // ===== Navbar載入與標記 =====
+    fetch('/navbar.html')
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById('navbarContainer').innerHTML = html;
+        document.querySelectorAll('.nav-link').forEach(link => {
+          if (link.href.endsWith('distributor-pickup.html')) {
+            link.classList.add('fw-bold', 'text-decoration-underline');
+          }
+        });
+      });
+
+    // ===== 載入數據 =====
+    async function loadData() {
+      const snap = await db.collection(COLLECTION).orderBy('createdAt', 'desc').get();
+      allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+      const status = document.getElementById('statusFilter').value;
+      const dateFromVal = document.getElementById('dateFrom').value;
+      const dateToVal = document.getElementById('dateTo').value;
+
+      filteredDocs = allDocs.filter(rec => {
+        // 狀態
+        if (status !== 'ALL' && (rec.status || 'OPEN') !== status) return false;
+        // 日期（以提貨日期為準）
+        if (dateFromVal) {
+          const from = new Date(dateFromVal + 'T00:00:00');
+          const rDate = rec.pickupDate ? new Date(rec.pickupDate) : null;
+          if (!rDate || rDate < from) return false;
+        }
+        if (dateToVal) {
+          const to = new Date(dateToVal + 'T23:59:59');
+          const rDate = rec.pickupDate ? new Date(rec.pickupDate) : null;
+          if (!rDate || rDate > to) return false;
+        }
+        // 關鍵字搜尋
+        if (q) {
+          const pool = [
+            rec.distributorName || '',
+            rec.distributorCompany || '',
+            rec.distributorPhone || '',
+            rec.notes || '',
+            ...(Array.isArray(rec.items) ? rec.items.map(i => (i.title || '') + ' ' + (i.barcode || '')) : [])
+          ].join(' ').toLowerCase();
+          if (!pool.includes(q)) return false;
+        }
+        return true;
+      });
+      renderSummary();
+      renderList();
+      document.getElementById('clearSearchBtn').style.display = q ? 'inline' : 'none';
+    }
+
+    function renderSummary() {
+      const total = filteredDocs.length;
+      const open = filteredDocs.filter(x => (x.status || 'OPEN') === 'OPEN').length;
+      const picked = filteredDocs.filter(x => x.status === 'PICKED').length;
+      const cancelled = filteredDocs.filter(x => x.status === 'CANCELLED').length;
+      document.getElementById('summaryBar').innerHTML = `
+        <span class="me-3"><span class="badge-dot status-open"></span>未提貨：${open}</span>
+        <span class="me-3"><span class="badge-dot status-picked"></span>已提貨：${picked}</span>
+        <span class="me-3"><span class="badge-dot status-cancel"></span>已取消：${cancelled}</span>
+        <span class="text-muted">（共 ${total} 筆）</span>
+      `;
+    }
+
+    function renderList() {
+      const container = document.getElementById('listContainer');
+      container.innerHTML = '';
+      if (!filteredDocs.length) {
+        container.innerHTML = '<div class="list-group-item text-muted">沒有記錄</div>';
+        return;
+      }
+      filteredDocs.forEach(rec => {
+        const 
+          status = rec.status || 'OPEN',
+          badge = status === 'OPEN' ? '<span class="badge bg-primary">未提貨</span>' : status === 'PICKED' ? '<span class="badge bg-success">已提貨</span>' : '<span class="badge bg-secondary">已取消</span>',
+          dateStr = rec.pickupDate ? new Date(rec.pickupDate).toLocaleDateString('zh-HK') : '-';
+
+        const itemsPreview = Array.isArray(rec.items) && rec.items.length
+          ? rec.items.slice(0,3).map(i => `<span class="item-chip" title="${(i.title||'')}">${(i.title||'').slice(0,16)}×${i.qty||1}</span>`).join(' ')
+          : '<span class="text-muted">（未加入貨品）</span>';
+
+        const html = `
+          <div class="list-group-item">
+            <div class="row g-2 align-items-center">
+              <div class="col-12 col-md-4">
+                <div class="fw-semibold truncate" title="${rec.distributorName||''}">${rec.distributorName||''}</div>
+                <div class="small text-muted truncate" title="${rec.distributorCompany||''}">${rec.distributorCompany||''}</div>
+                <div class="small text-muted">${rec.distributorPhone||''}</div>
+              </div>
+              <div class="col-6 col-md-2">
+                <div>提貨日期</div>
+                <div class="fw-semibold">${dateStr}</div>
+              </div>
+              <div class="col-6 col-md-2">
+                <div>狀態</div>
+                <div>${badge}</div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="mb-2">${itemsPreview}</div>
+                <div class="list-actions">
+                  <button class="btn btn-sm btn-outline-primary" onclick="openEditPickup('${rec.id}')"><i class="bi bi-pencil"></i> 編輯</button>
+                  ${status !== 'PICKED' ? `<button class="btn btn-sm btn-success" onclick="updateStatus('${rec.id}','PICKED')"><i class="bi bi-check2-circle"></i> 設為已提貨</button>` : ''}
+                  ${status !== 'OPEN' ? `<button class="btn btn-sm btn-outline-primary" onclick="updateStatus('${rec.id}','OPEN')"><i class="bi bi-arrow-counterclockwise"></i> 設為未提貨</button>` : ''}
+                  ${status !== 'CANCELLED' ? `<button class="btn btn-sm btn-secondary" onclick="updateStatus('${rec.id}','CANCELLED')"><i class="bi bi-x-circle"></i> 取消</button>` : ''}
+                  <button class="btn btn-sm btn-outline-danger" onclick="deletePickup('${rec.id}')"><i class="bi bi-trash"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        // child is the .list-group-item
+        container.appendChild(div.firstElementChild);
+      });
+    }
+
+    // ===== 搜尋 =====
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('searchInput').addEventListener('input', applyFilters);
+    });
+    function clearSearch(){
+      const el = document.getElementById('searchInput');
+      el.value = ''; applyFilters();
+    }
+
+    // ===== CRUD：新增／編輯 =====
+    function openNewPickup(){
+      resetForm();
+      document.getElementById('pickupModalTitle').innerText = '新增提貨記錄';
+      new bootstrap.Modal(document.getElementById('pickupModal')).show();
+    }
+
+    async function openEditPickup(id){
+      resetForm();
+      const doc = await db.collection(COLLECTION).doc(id).get();
+      if (!doc.exists){ alert('記錄不存在'); return; }
+      const data = doc.data();
+
+      document.getElementById('docId').value = id;
+      document.getElementById('distributorName').value = data.distributorName || '';
+      document.getElementById('distributorCompany').value = data.distributorCompany || '';
+      document.getElementById('distributorPhone').value = data.distributorPhone || '';
+      if (data.pickupDate){
+        const d = new Date(data.pickupDate);
+        document.getElementById('pickupDate').value = d.toISOString().slice(0,10);
+      }
+      document.getElementById('status').value = data.status || 'OPEN';
+      document.getElementById('notes').value = data.notes || '';
+
+      const items = Array.isArray(data.items) ? data.items : [];
+      items.forEach(addItemRowWithData);
+
+      document.getElementById('pickupModalTitle').innerText = '編輯提貨記錄';
+      new bootstrap.Modal(document.getElementById('pickupModal')).show();
+    }
+
+    function resetForm(){
+      document.getElementById('pickupForm').reset();
+      document.getElementById('docId').value = '';
+      document.getElementById('itemsTbody').innerHTML = '';
+      // 預設新增一行
+      addItemRow();
+    }
+
+    function addItemRow(){ addItemRowWithData({ title:'', barcode:'', qty:1, productUrl:'', imageUrl:'' }); }
+
+    function addItemRowWithData(item){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="form-control form-control-sm" placeholder="名稱" value="${escapeHtml(item.title||'')}" /></td>
+        <td><input type="text" class="form-control form-control-sm" placeholder="條碼" value="${escapeHtml(item.barcode||'')}" /></td>
+        <td style="max-width:90px"><input type="number" min="1" class="form-control form-control-sm" value="${item.qty||1}" /></td>
+        <td><input type="text" class="form-control form-control-sm" placeholder="https://…" value="${escapeHtml(item.productUrl||'')}" /></td>
+        <td><input type="text" class="form-control form-control-sm" placeholder="https://image…" value="${escapeHtml(item.imageUrl||'')}" /></td>
+        <td><button class="btn btn-sm btn-outline-danger" type="button" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+      `;
+      document.getElementById('itemsTbody').appendChild(tr);
+    }
+
+    function collectItems(){
+      const rows = Array.from(document.querySelectorAll('#itemsTbody tr'));
+      return rows.map(r => {
+        const [title, barcode, qty, productUrl, imageUrl] = r.querySelectorAll('input');
+        return {
+          title: title.value.trim(),
+          barcode: barcode.value.trim(),
+          qty: Math.max(1, parseInt(qty.value, 10) || 1),
+          productUrl: productUrl.value.trim(),
+          imageUrl: imageUrl.value.trim()
+        };
+      }).filter(i => i.title || i.barcode); // 至少填一項才保存
+    }
+
+    async function savePickup(e){
+      e.preventDefault();
+      const id = document.getElementById('docId').value;
+      const payload = {
+        distributorName: document.getElementById('distributorName').value.trim(),
+        distributorCompany: document.getElementById('distributorCompany').value.trim(),
+        distributorPhone: document.getElementById('distributorPhone').value.trim(),
+        pickupDate: document.getElementById('pickupDate').value ? new Date(document.getElementById('pickupDate').value).toISOString() : null,
+        status: document.getElementById('status').value,
+        notes: document.getElementById('notes').value.trim(),
+        items: collectItems(),
+        updatedAt: new Date().toISOString()
+      };
+      if (!payload.distributorName || !payload.pickupDate){
+        alert('請填寫必填欄位'); return;
+      }
+      if (id){
+        await db.collection(COLLECTION).doc(id).set(payload, { merge: true });
+      } else {
+        payload.createdAt = new Date().toISOString();
+        const ref = await db.collection(COLLECTION).add(payload);
+        document.getElementById('docId').value = ref.id;
+      }
+      bootstrap.Modal.getInstance(document.getElementById('pickupModal')).hide();
+      await loadData();
+    }
+
+    async function deletePickup(id){
+      if (!confirm('確定刪除這筆記錄？')) return;
+      await db.collection(COLLECTION).doc(id).delete();
+      await loadData();
+    }
+
+    async function updateStatus(id, newStatus){
+      await db.collection(COLLECTION).doc(id).set({ status: newStatus, updatedAt: new Date().toISOString() }, { merge: true });
+      await loadData();
+    }
+
+    // ===== 掃碼加入貨品（可選） =====
+    const PRICELIST_COLLECTION = 'pricetaglabel'; // 用以查找條碼對應名稱
+
+    document.getElementById('scanModal').addEventListener('shown.bs.modal', startScan);
+    document.getElementById('scanModal').addEventListener('hidden.bs.modal', stopScan);
+
+    async function startScan(){
+      const video = document.getElementById('qr-video');
+      codeReader = new ZXing.BrowserMultiFormatReader();
+      videoDevices = await codeReader.listVideoInputDevices();
+      if (!videoDevices.length){ alert('未偵測到相機'); return; }
+      if (selectedDeviceId === null){
+        const back = videoDevices.find(d => /back|rear|environment/i.test(d.label));
+        selectedDeviceId = (back && back.deviceId) || videoDevices[0].deviceId;
+        currentDeviceIndex = videoDevices.findIndex(d => d.deviceId === selectedDeviceId);
+      }
+      try {
+        await codeReader.decodeFromVideoDevice(selectedDeviceId, video, async (result, err) => {
+          if (result){
+            const code = result.getText();
+            await handleScannedCode(code);
+            stopScan();
+            bootstrap.Modal.getInstance(document.getElementById('scanModal')).hide();
+          }
+        });
+      } catch (e){
+        alert('鏡頭錯誤：' + e);
+        stopScan();
+      }
+    }
+
+    async function handleScannedCode(barcode){
+      // 先嘗試從 pricetaglabel 取名稱
+      try {
+        const q = await db.collection(PRICELIST_COLLECTION).where('Barcode', '==', barcode).limit(1).get();
+        let title = '';
+        if (!q.empty){
+          const d = q.docs[0].data();
+          title = d.ProductNameEng || d.Title || '';
+        }
+        addItemRowWithData({ title: title || '', barcode, qty: 1, productUrl: '', imageUrl: '' });
+      } catch (e){
+        addItemRowWithData({ title: '', barcode, qty: 1, productUrl: '', imageUrl: '' });
+      }
+    }
+
+    async function switchCamera(){
+      if (!videoDevices.length) return;
+      currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+      selectedDeviceId = videoDevices[currentDeviceIndex].deviceId;
+      if (codeReader){ await codeReader.reset(); }
+      setTimeout(startScan, 200);
+    }
+
+    function stopScan(){
+      if (codeReader){ codeReader.reset(); codeReader = null; }
+    }
+
+    // ===== 匯出 CSV =====
+    function exportCSV(){
+      const rows = [
+        ['ID','分銷商','公司','電話','提貨日期','狀態','備註','品項明細','建立時間','更新時間']
+      ];
+      filteredDocs.forEach(r => {
+        const itemsText = (r.items||[]).map(i => `${(i.title||'').replace(/,/g,' ')} x${i.qty||1} [${i.barcode||''}]`).join(' | ');
+        rows.push([
+          r.id,
+          r.distributorName||'',
+          r.distributorCompany||'',
+          r.distributorPhone||'',
+          r.pickupDate||'',
+          r.status||'',
+          (r.notes||'').replace(/\n/g,' '),
+          itemsText,
+          r.createdAt||'',
+          r.updatedAt||''
+        ]);
+      });
+      const csv = rows.map(arr => arr.map(cell => `"${(cell||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `distributor_pickups_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // ===== 工具 =====
+    function escapeHtml(str){
+      return (str||'').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s]));
+    }
+
+    // ===== 初始化 =====
+    loadData();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
