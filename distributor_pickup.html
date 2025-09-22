@@ -33,7 +33,8 @@
     .required::after { content:" *"; color:#dc3545; }
     #clearSearchBtn { position:absolute; right:3rem; top:50%; transform:translateY(-50%); cursor:pointer; color:#888; font-size:1.2rem; display:none; }
     .kv { font-size:.9rem; color:#6c757d; }
-
+    .thumb-48 { width:48px; height:48px; object-fit:contain; background:#fff; }
+    .form-control-locked[readonly] { background:#f1f3f5; cursor:not-allowed; }
     /* Product typeahead */
     .prod-search-wrap { position: relative; }
     .prod-results {
@@ -45,8 +46,6 @@
     .prod-item { padding:.5rem .75rem; cursor:pointer; }
     .prod-item:hover, .prod-item.active { background:#f1f3f5; }
     .prod-badge { font-size:.75rem; }
-
-    .thumb-48 { width:48px; height:48px; object-fit:contain; background:#fff; }
   </style>
 </head>
 <body class="bg-light">
@@ -167,7 +166,7 @@
                   <i class="bi bi-upc-scan"></i> 掃描加入
                 </button>
                 <button class="btn btn-sm btn-primary" type="button" onclick="addItemRow()">
-                  <i class="bi bi-plus-lg"></i> 新增行
+                  <i class="bi bi-plus-lg"></i> 新增空白行
                 </button>
               </div>
             </div>
@@ -176,7 +175,7 @@
             <div class="prod-search-wrap mb-3">
               <input id="prodSearch" type="text" class="form-control" placeholder="輸入英文/中文品名或條碼 (≥2字開始搜尋)">
               <div id="prodResults" class="prod-results"></div>
-              <div class="form-text">點選結果會新增到下方清單，並自動帶入名稱／條碼／圖片。</div>
+              <div class="form-text">點選結果會新增到下方清單，並自動帶入名稱／條碼／圖片。品名與條碼欄位已鎖定，請透過搜尋或掃碼新增。</div>
             </div>
 
             <div class="table-responsive">
@@ -279,6 +278,7 @@
         distributors.map(d => `<option value="${d.id}">${escapeHtml(d.name||'')}${d.company? ' · '+escapeHtml(d.company): ''}${d.tel? ' · '+escapeHtml(d.tel): ''}</option>`).join('');
       if (selectedId){ sel.value = selectedId; }
       applyDistributorDetails();
+      sel.onchange = applyDistributorDetails;
     }
 
     function applyDistributorDetails(){
@@ -439,47 +439,38 @@
       document.getElementById('itemsTbody').innerHTML='';
       addItemRow();
 
-      setTimeout(()=>{
-        const sel = document.getElementById('distributorSelect');
-        if (sel) sel.onchange = applyDistributorDetails;
-      },0);
-
       const ps = document.getElementById('prodSearch');
       const pr = document.getElementById('prodResults');
       if (ps) ps.value = '';
       if (pr) { pr.innerHTML=''; pr.style.display='none'; }
     }
 
-    // ===== Items table (no product link column; photo shows thumbnail) =====
+    // ===== Items table (locked name & barcode; no change-photo btn) =====
     function addItemRow(){ addItemRowWithData({ title:'', barcode:'', qty:1, imageUrl:'' }); }
 
     function addItemRowWithData(item){
       const tr = document.createElement('tr');
       const img = escapeHtml(item.imageUrl || '');
       tr.innerHTML = `
-        <td><input name="title" type="text" class="form-control form-control-sm" placeholder="名稱" value="${escapeHtml(item.title||'')}" /></td>
-        <td><input name="barcode" type="text" class="form-control form-control-sm" placeholder="條碼" value="${escapeHtml(item.barcode||'')}" /></td>
-        <td style="max-width:110px"><input name="qty" type="number" min="1" class="form-control form-control-sm" value="${item.qty||1}" /></td>
+        <td>
+          <input name="title" type="text" class="form-control form-control-sm form-control-locked" placeholder="名稱（由搜尋/掃碼帶入）" value="${escapeHtml(item.title||'')}" readonly />
+        </td>
+        <td>
+          <input name="barcode" type="text" class="form-control form-control-sm form-control-locked" placeholder="條碼（由搜尋/掃碼帶入）" value="${escapeHtml(item.barcode||'')}" readonly />
+        </td>
+        <td style="max-width:110px">
+          <input name="qty" type="number" min="1" class="form-control form-control-sm" value="${item.qty||1}" />
+        </td>
         <td class="text-center">
-          <img src="${img || '/images/truly_favicon_o1.png'}" class="thumb-48 border rounded" alt="img" onerror="this.src='/images/truly_favicon_o1.png'">
+          <a href="${img || '#'}" target="_blank" tabindex="-1" ${img ? '' : 'class="disabled"'} title="開新視窗查看">
+            <img src="${img || '/images/truly_favicon_o1.png'}" class="thumb-48 border rounded" alt="img" onerror="this.src='/images/truly_favicon_o1.png'">
+          </a>
           <input name="imageUrl" type="hidden" value="${img}">
-          <div><button class="btn btn-sm btn-outline-secondary mt-1" type="button" onclick="changeRowImage(this)">更換圖片</button></div>
         </td>
         <td>
           <button class="btn btn-sm btn-outline-danger" type="button" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button>
         </td>`;
       document.getElementById('itemsTbody').appendChild(tr);
-    }
-
-    function changeRowImage(btn){
-      const tr = btn.closest('tr');
-      const hidden = tr.querySelector('input[name="imageUrl"]');
-      const cur = hidden.value || '';
-      const url = prompt('輸入圖片 URL：', cur);
-      if (url === null) return;
-      hidden.value = url.trim();
-      const img = tr.querySelector('img');
-      img.src = hidden.value || '/images/truly_favicon_o1.png';
     }
 
     function collectItems(){
