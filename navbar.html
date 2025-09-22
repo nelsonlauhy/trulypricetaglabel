@@ -4,7 +4,8 @@
       <img src="/images/truly_favicon_o1.png" alt="Logo" style="height: 30px; margin-right: 10px;">
       TRULY
     </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbarNav">
@@ -13,11 +14,20 @@
           <a class="nav-link text-white" href="index.html" id="navPriceTag">Price Tag Tool</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link text-white" href="reserve_manage.html" id="navPriceTag">Reserve Manage</a>
+          <a class="nav-link text-white" href="reserve_manage.html" id="navReserveManage">Reserve Manage</a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link text-white" href="distributor_pickup.html" id="navPriceTag">Distributor Pickup (Testing)</a>
+        
+        <!-- Dropdown for Distribution -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle text-white" href="#" id="navDistribution" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Distribution
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navDistribution">
+            <li><a class="dropdown-item" href="distributor_pickup.html">Distributor Pickup</a></li>
+            <li><a class="dropdown-item" href="Distributor-master.html">Distributor Master</a></li>
+          </ul>
         </li>
+
         <li class="nav-item">
           <a class="nav-link text-white" href="productsearch.html" id="navProductSearch">Product Search</a>
         </li>
@@ -25,10 +35,15 @@
     </div>
   </div>
 </nav>
+
 <script>
   const path = window.location.pathname;
   if (path.includes("index.html")) {
     document.getElementById("navPriceTag")?.classList.add("fw-bold", "text-decoration-underline");
+  } else if (path.includes("reserve_manage.html")) {
+    document.getElementById("navReserveManage")?.classList.add("fw-bold", "text-decoration-underline");
+  } else if (path.includes("distributor_pickup.html") || path.includes("Distributor-master.html")) {
+    document.getElementById("navDistribution")?.classList.add("fw-bold", "text-decoration-underline");
   } else if (path.includes("productsearch.html")) {
     document.getElementById("navProductSearch")?.classList.add("fw-bold", "text-decoration-underline");
   }

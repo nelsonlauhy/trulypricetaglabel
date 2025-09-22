@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>分銷商主檔管理 · Truly</title>
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
+
+  <style>
+    body { background:#f8f9fa; }
+    .page-title { display:flex; align-items:center; gap:.5rem; }
+    .toolbar { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .truncate { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .table thead th { position:sticky; top:0; z-index:1; background:#f8f9fa; }
+    .required::after { content:" *"; color:#dc3545; }
+    #clearSearchBtn { position:absolute; right:3rem; top:50%; transform:translateY(-50%); cursor:pointer; color:#888; font-size:1.2rem; display:none; }
+  </style>
+</head>
+<body>
+  <!-- Navbar（沿用現有） -->
+  <div id="navbarContainer"></div>
+
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="page-title">
+        <i class="bi bi-people"></i>
+        <h4 class="m-0">分銷商主檔管理</h4>
+      </div>
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="openNewDistributor()"><i class="bi bi-plus-lg"></i> 新增分銷商</button>
+        <button class="btn btn-outline-secondary" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i> 匯出 CSV</button>
+      </div>
+    </div>
+
+    <div class="row g-2 align-items-center mb-3">
+      <div class="col-12 col-md-6">
+        <div class="input-group position-relative">
+          <input id="searchInput" type="text" class="form-control" placeholder="搜尋：名稱／公司／聯絡人／電話／Email／備註" oninput="applyFilter()" />
+          <span id="clearSearchBtn" onclick="clearSearch()">&times;</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <select id="activeFilter" class="form-select" onchange="applyFilter()">
+          <option value="ALL">狀態：全部</option>
+          <option value="ACTIVE">啟用</option>
+          <option value="INACTIVE">停用</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-4 text-md-end">
+        <small id="summaryText" class="text-muted">載入中…</small>
+      </div>
+    </div>
+
+    <div class="table-responsive shadow-sm rounded">
+      <table class="table table-sm table-hover align-middle m-0">
+        <thead>
+          <tr>
+            <th style="width:18rem">名稱 / 公司</th>
+            <th style="width:10rem">聯絡人</th>
+            <th style="width:10rem">電話</th>
+            <th style="width:16rem">Email</th>
+            <th>備註</th>
+            <th style="width:7rem">狀態</th>
+            <th style="width:9rem">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="7" class="text-muted">載入中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 新增／編輯 Modal -->
+  <div class="modal fade" id="distributorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <form id="distForm" onsubmit="saveDistributor(event)">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalTitle">新增分銷商</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="docId" />
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label required">分銷商名稱</label>
+                <input id="name" type="text" class="form-control" required />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">公司名稱</label>
+                <input id="company" type="text" class="form-control" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">聯絡人</label>
+                <input id="contactPerson" type="text" class="form-control" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">電話</label>
+                <input id="tel" type="text" class="form-control" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input id="email" type="email" class="form-control" placeholder="name@example.com" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">狀態</label>
+                <select id="status" class="form-select">
+                  <option value="ACTIVE">啟用</option>
+                  <option value="INACTIVE">停用</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label">備註</label>
+                <textarea id="notes" rows="2" class="form-control" placeholder="可填寫付款方式、送貨偏好等"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="submit" class="btn btn-primary">儲存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Firebase Init（沿用你現有設定） =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
+      authDomain: "trulymarket-c25b6.firebaseapp.com",
+      projectId: "trulymarket-c25b6",
+      storageBucket: "trulymarket-c25b6.firebasestorage.app",
+      messagingSenderId: "810610286008",
+      appId: "1:810610286008:web:847f3bc2c441e103a1434d",
+      measurementId: "G-KWN9XQD8K5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const COLL = 'distributors';
+    let allRows = [], filtered = [];
+
+    // Navbar 載入
+    fetch('/navbar.html').then(r=>r.text()).then(html=>{
+      document.getElementById('navbarContainer').innerHTML = html;
+      document.querySelectorAll('.nav-link').forEach(link=>{
+        if (link.href.endsWith('distributor-master.html')){
+          link.classList.add('fw-bold','text-decoration-underline');
+        }
+      });
+    });
+
+    // 載入列表
+    async function loadData(){
+      const snap = await db.collection(COLL).orderBy('nameLower').get().catch(async e => {
+        // 如果沒有索引欄位，退回用 name 排序（或不排序）
+        console.warn('nameLower orderBy 失敗，改用 name：', e);
+        return await db.collection(COLL).orderBy('name').get();
+      });
+      allRows = snap.docs.map(d=>({ id: d.id, ...d.data() }));
+      applyFilter();
+    }
+
+    function applyFilter(){
+      const q = (document.getElementById('searchInput').value||'').trim().toLowerCase();
+      const f = document.getElementById('activeFilter').value;
+      filtered = allRows.filter(row => {
+        if (f !== 'ALL' && (row.status||'ACTIVE') !== f) return false;
+        if (!q) return true;
+        const pool = [row.name,row.company,row.contactPerson,row.tel,row.email,row.notes].map(v => (v||'').toLowerCase()).join(' ');
+        return pool.includes(q);
+      });
+      document.getElementById('clearSearchBtn').style.display = q ? 'inline' : 'none';
+      renderTable();
+    }
+
+    function clearSearch(){
+      const el = document.getElementById('searchInput');
+      el.value = ''; applyFilter();
+    }
+
+    function renderTable(){
+      const tbody = document.getElementById('tableBody');
+      if (!filtered.length){
+        tbody.innerHTML = '<tr><td colspan="7" class="text-muted">沒有資料</td></tr>';
+        document.getElementById('summaryText').innerText = '0 筆';
+        return;
+      }
+      document.getElementById('summaryText').innerText = `${filtered.length} / ${allRows.length} 筆`;
+      tbody.innerHTML = '';
+      filtered.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <div class="fw-semibold truncate" title="${esc(row.name)}">${esc(row.name||'')}</div>
+            <div class="text-muted small truncate" title="${esc(row.company)}">${esc(row.company||'')}</div>
+          </td>
+          <td class="truncate" title="${esc(row.contactPerson)}">${esc(row.contactPerson||'')}</td>
+          <td class="truncate" title="${esc(row.tel)}">${esc(row.tel||'')}</td>
+          <td class="truncate" title="${esc(row.email)}">${esc(row.email||'')}</td>
+          <td class="truncate" title="${esc(row.notes)}">${esc(row.notes||'')}</td>
+          <td>${(row.status||'ACTIVE')==='ACTIVE' ? '<span class="badge bg-success">啟用</span>' : '<span class="badge bg-secondary">停用</span>'}</td>
+          <td>
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-primary" onclick="openEdit('${row.id}')"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-outline-danger" onclick="delRow('${row.id}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 新增/編輯
+    function openNewDistributor(){
+      resetForm();
+      document.getElementById('modalTitle').innerText = '新增分銷商';
+      new bootstrap.Modal(document.getElementById('distributorModal')).show();
+    }
+
+    async function openEdit(id){
+      resetForm();
+      const doc = await db.collection(COLL).doc(id).get();
+      if (!doc.exists){ alert('找不到記錄'); return; }
+      const r = doc.data();
+      document.getElementById('docId').value = id;
+      document.getElementById('name').value = r.name||'';
+      document.getElementById('company').value = r.company||'';
+      document.getElementById('contactPerson').value = r.contactPerson||'';
+      document.getElementById('tel').value = r.tel||'';
+      document.getElementById('email').value = r.email||'';
+      document.getElementById('status').value = r.status||'ACTIVE';
+      document.getElementById('notes').value = r.notes||'';
+      document.getElementById('modalTitle').innerText = '編輯分銷商';
+      new bootstrap.Modal(document.getElementById('distributorModal')).show();
+    }
+
+    function resetForm(){
+      document.getElementById('distForm').reset();
+      document.getElementById('docId').value = '';
+      document.getElementById('status').value = 'ACTIVE';
+    }
+
+    function validateEmail(v){
+      if (!v) return true; // 可留空
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    }
+
+    async function saveDistributor(e){
+      e.preventDefault();
+      const id = document.getElementById('docId').value;
+      const payload = {
+        name: document.getElementById('name').value.trim(),
+        nameLower: document.getElementById('name').value.trim().toLowerCase(),
+        company: document.getElementById('company').value.trim(),
+        contactPerson: document.getElementById('contactPerson').value.trim(),
+        tel: document.getElementById('tel').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        status: document.getElementById('status').value,
+        notes: document.getElementById('notes').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+      if (!payload.name){ alert('請填寫「分銷商名稱」'); return; }
+      if (!validateEmail(payload.email)){ alert('Email 格式不正確'); return; }
+
+      if (id){
+        await db.collection(COLL).doc(id).set(payload, { merge: true });
+      } else {
+        payload.createdAt = new Date().toISOString();
+        await db.collection(COLL).add(payload);
+      }
+      bootstrap.Modal.getInstance(document.getElementById('distributorModal')).hide();
+      await loadData();
+    }
+
+    async function delRow(id){
+      if (!confirm('確定刪除這筆分銷商資料？')) return;
+      await db.collection(COLL).doc(id).delete();
+      await loadData();
+    }
+
+    function exportCSV(){
+      const rows = [['ID','名稱','公司','聯絡人','電話','Email','狀態','備註','建立時間','更新時間']];
+      filtered.forEach(r => rows.push([
+        r.id,
+        r.name||'',
+        r.company||'',
+        r.contactPerson||'',
+        r.tel||'',
+        r.email||'',
+        r.status||'',
+        (r.notes||'').replace(/\n/g,' '),
+        r.createdAt||'',
+        r.updatedAt||''
+      ]));
+      const csv = rows.map(arr => arr.map(cell => '"'+(String(cell||'').replace(/"/g,'""'))+'"').join(',')).join('\n');
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'distributors_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+    // 初始化
+    loadData();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
