@@ -29,23 +29,47 @@
     .status-cancel { background:#6c757d; }
     .item-chip { border:1px solid #dee2e6; border-radius:999px; padding:.125rem .5rem; font-size:.85rem; background:#fff; }
     .truncate { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .table-items td, .table-items th { vertical-align: middle; }
     .required::after { content:" *"; color:#dc3545; }
     #clearSearchBtn { position:absolute; right:3rem; top:50%; transform:translateY(-50%); cursor:pointer; color:#888; font-size:1.2rem; display:none; }
     .kv { font-size:.9rem; color:#6c757d; }
+
+    /* Items table */
+    .table-items td, .table-items th { vertical-align: middle; }
     .thumb-48 { width:48px; height:48px; object-fit:contain; background:#fff; }
     .form-control-locked[readonly] { background:#f1f3f5; cursor:not-allowed; }
-    /* Product typeahead */
+
+    /* Product search (typeahead) */
     .prod-search-wrap { position: relative; }
     .prod-results {
       position: absolute; z-index: 1080; left:0; right:0; top:100%;
       background:#fff; border:1px solid rgba(0,0,0,.125); border-top:none;
-      max-height: 320px; overflow:auto; box-shadow: 0 6px 18px rgba(0,0,0,.08);
+      max-height: 50vh; /* more space for dropdown */
+      overflow:auto; box-shadow: 0 6px 18px rgba(0,0,0,.08);
       display:none;
     }
     .prod-item { padding:.5rem .75rem; cursor:pointer; }
     .prod-item:hover, .prod-item.active { background:#f1f3f5; }
     .prod-badge { font-size:.75rem; }
+
+    /* Modal layout refinements */
+    .modal-xl { --bs-modal-width: 1080px; }               /* wider on desktop */
+    .modal-content { max-height: 92vh; display:flex; flex-direction:column; }
+    .modal-header, .modal-footer { flex: 0 0 auto; }
+    .modal-body { flex: 1 1 auto; overflow:auto; }
+
+    /* Keep search area visible while scrolling */
+    .sticky-search {
+      position: sticky; top: 0; z-index: 1040;
+      background:#fff; padding-top:.25rem; padding-bottom:.5rem; border-bottom:1px solid #eee;
+    }
+
+    /* Collapsible basic section */
+    details.summary-block summary {
+      list-style: none; cursor: pointer; user-select: none; display:flex; align-items:center; gap:.5rem;
+    }
+    details.summary-block summary::-webkit-details-marker { display:none; }
+    details.summary-block[open] summary .chev { transform: rotate(90deg); }
+    .chev { transition: transform .15s ease; }
   </style>
 </head>
 <body class="bg-light">
@@ -107,85 +131,83 @@
 
   <!-- 新增／編輯 Modal -->
   <div class="modal fade" id="pickupModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-fullscreen-sm-down">
       <div class="modal-content">
         <form id="pickupForm" onsubmit="savePickup(event)">
           <div class="modal-header">
             <h5 class="modal-title" id="pickupModalTitle">新增提貨記錄</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
+
           <div class="modal-body">
-            <input type="hidden" id="docId" />
+            <!-- 可收合：基本資料 -->
+            <details class="summary-block mb-3" open>
+              <summary class="h6 mb-2"><i class="bi bi-chevron-right chev"></i> 基本資料</summary>
+              <div class="row g-3">
+                <input type="hidden" id="docId" />
+                <!-- 分銷商下拉選擇 -->
+                <div class="col-md-6">
+                  <label class="form-label required">分銷商</label>
+                  <select id="distributorSelect" class="form-select" required></select>
+                  <div class="form-text">來源：distributors 主檔（只顯示啟用的記錄）。</div>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label required">提貨日期</label>
+                  <input id="pickupDate" type="date" class="form-control" required />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label required">狀態</label>
+                  <select id="status" class="form-select" required>
+                    <option value="OPEN">未提貨</option>
+                    <option value="PICKED">已提貨</option>
+                    <option value="CANCELLED">已取消</option>
+                  </select>
+                </div>
 
-            <div class="row g-3">
-              <!-- 分銷商下拉選擇 -->
-              <div class="col-md-6">
-                <label class="form-label required">分銷商</label>
-                <select id="distributorSelect" class="form-select" required></select>
-                <div class="form-text">來源：distributors 主檔（只顯示啟用的記錄）。</div>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label required">提貨日期</label>
-                <input id="pickupDate" type="date" class="form-control" required />
-              </div>
-              <div class="col-md-3">
-                <label class="form-label required">狀態</label>
-                <select id="status" class="form-select" required>
-                  <option value="OPEN">未提貨</option>
-                  <option value="PICKED">已提貨</option>
-                  <option value="CANCELLED">已取消</option>
-                </select>
-              </div>
+                <!-- 由主檔帶出（唯讀） -->
+                <div class="col-md-3">
+                  <label class="form-label">聯絡人</label>
+                  <input id="distContact" type="text" class="form-control" placeholder="—" readonly />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">電話</label>
+                  <input id="distTel" type="text" class="form-control" placeholder="—" readonly />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">電郵</label>
+                  <input id="distEmail" type="text" class="form-control" placeholder="—" readonly />
+                </div>
 
-              <!-- 顯示由主檔帶出的聯絡資訊（唯讀） -->
-              <div class="col-md-3">
-                <label class="form-label">聯絡人</label>
-                <input id="distContact" type="text" class="form-control" placeholder="—" readonly />
+                <div class="col-12">
+                  <label class="form-label">備註</label>
+                  <input id="notes" type="text" class="form-control" placeholder="可輸入車牌、付款方式或其他備註" />
+                </div>
               </div>
-              <div class="col-md-3">
-                <label class="form-label">電話</label>
-                <input id="distTel" type="text" class="form-control" placeholder="—" readonly />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">電郵</label>
-                <input id="distEmail" type="text" class="form-control" placeholder="—" readonly />
-              </div>
+            </details>
 
-              <div class="col-12">
-                <label class="form-label">備註</label>
-                <input id="notes" type="text" class="form-control" placeholder="可輸入車牌、付款方式或其他備註" />
-              </div>
-            </div>
-
-            <hr class="my-4" />
-
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h6 class="m-0"><i class="bi bi-bag"></i> 提貨貨品</h6>
-              <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#scanModal">
-                  <i class="bi bi-upc-scan"></i> 掃描加入
+            <!-- Sticky 搜尋區，滾動時固定在頂 -->
+            <div class="sticky-search">
+              <label class="form-label mb-1"><i class="bi bi-bag"></i> 提貨貨品</label>
+              <div class="d-flex gap-2 mb-1">
+                <div class="prod-search-wrap flex-grow-1">
+                  <input id="prodSearch" type="text" class="form-control" placeholder="輸入英文/中文品名或條碼 (≥2字開始搜尋)">
+                  <div id="prodResults" class="prod-results"></div>
+                </div>
+                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#scanModal">
+                  <i class="bi bi-upc-scan"></i>
                 </button>
-                <button class="btn btn-sm btn-primary" type="button" onclick="addItemRow()">
-                  <i class="bi bi-plus-lg"></i> 新增空白行
-                </button>
               </div>
+              <div class="form-text">點選結果會新增到下方清單；品名/條碼鎖定，僅可修改數量。</div>
             </div>
 
-            <!-- 產品搜尋（typeahead） -->
-            <div class="prod-search-wrap mb-3">
-              <input id="prodSearch" type="text" class="form-control" placeholder="輸入英文/中文品名或條碼 (≥2字開始搜尋)">
-              <div id="prodResults" class="prod-results"></div>
-              <div class="form-text">點選結果會新增到下方清單，並自動帶入名稱／條碼／圖片。品名與條碼欄位已鎖定，請透過搜尋或掃碼新增。</div>
-            </div>
-
-            <div class="table-responsive">
+            <div class="table-responsive mt-2">
               <table class="table table-sm align-middle table-items">
                 <thead class="table-light">
                   <tr>
-                    <th style="width:30%">貨品名稱</th>
-                    <th style="width:20%">條碼</th>
-                    <th style="width:15%">數量</th>
-                    <th style="width:15%">照片</th>
+                    <th style="width:30%">貨品名稱（唯讀）</th>
+                    <th style="width:20%">條碼（唯讀）</th>
+                    <th style="width:12%">數量</th>
+                    <th style="width:18%">照片</th>
                     <th style="width:20%">操作</th>
                   </tr>
                 </thead>
@@ -193,6 +215,7 @@
               </table>
             </div>
           </div>
+
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
             <button type="submit" class="btn btn-primary">儲存</button>
@@ -242,7 +265,7 @@
 
     // ===== 狀態 =====
     let allDocs = [], filteredDocs = [];
-    let distributors = []; // 供下拉使用
+    let distributors = [];            // 供下拉使用
     let codeReader = null, videoDevices = [], selectedDeviceId = null, currentDeviceIndex = 0;
 
     // Product cache for typeahead
@@ -259,13 +282,12 @@
       });
     });
 
-    // ===== Utility =====
+    // ===== 工具 =====
     function escapeHtml(str){ return (str||'').replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
 
     // ===== 分銷商主檔 =====
     async function loadDistributors(){
       const snap = await db.collection(DIST_COLL).where('status','in',['ACTIVE', null]).orderBy('name').get().catch(async ()=>{
-        // Fallback: if compound query not indexed, get all
         const s = await db.collection(DIST_COLL).orderBy('name').get();
         return s;
       });
@@ -392,7 +414,7 @@
 
     // ===== CRUD：Modal 開啟/編輯 =====
     async function openNewPickup(){
-      await loadDistributors();
+      await Promise.all([loadDistributors(), preloadProducts()]);
       resetForm();
       fillDistributorSelect();
       document.getElementById('pickupModalTitle').innerText='新增提貨記錄';
@@ -401,7 +423,7 @@
     }
 
     async function openEditPickup(id){
-      await loadDistributors();
+      await Promise.all([loadDistributors(), preloadProducts()]);
       resetForm();
       const doc = await db.collection(PICKUP_COLL).doc(id).get();
       if (!doc.exists){ alert('記錄不存在'); return; }
@@ -437,6 +459,7 @@
       document.getElementById('pickupForm').reset();
       document.getElementById('docId').value='';
       document.getElementById('itemsTbody').innerHTML='';
+      // 預設空白行（可刪除）
       addItemRow();
 
       const ps = document.getElementById('prodSearch');
@@ -445,7 +468,7 @@
       if (pr) { pr.innerHTML=''; pr.style.display='none'; }
     }
 
-    // ===== Items table (locked name & barcode; no change-photo btn) =====
+    // ===== Items table (name & barcode locked; photo thumbnail; no change-photo btn) =====
     function addItemRow(){ addItemRowWithData({ title:'', barcode:'', qty:1, imageUrl:'' }); }
 
     function addItemRowWithData(item){
@@ -551,7 +574,7 @@
           normalize(p.Barcode).includes(t)
         ) {
           out.push(p);
-          if (out.length >= 20) break;
+          if (out.length >= 30) break; // show more results than before
         }
       }
       return out;
@@ -606,7 +629,6 @@
         if (qty) qty.focus();
       }, 60);
     }
-
     function debounce(fn, wait=150){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); }; }
     const onProdSearchInput = debounce(()=>{
       const term = document.getElementById("prodSearch").value.trim();
@@ -703,7 +725,7 @@
     (async()=>{
       await Promise.all([loadDistributors(), preloadProducts()]);
       await loadData();
-      // global typeahead listeners for safety (also re-wired on modal open)
+      // global typeahead listeners (also re-wired on modal open)
       const ps = document.getElementById("prodSearch");
       if (ps){
         ps.addEventListener("input", onProdSearchInput);
