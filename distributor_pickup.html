@@ -13,7 +13,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-  <!-- ZXing (可選，用於掃碼新增貨品) -->
+  <!-- ZXing (for barcode scan, optional) -->
   <script src="https://unpkg.com/@zxing/library@latest"></script>
 
   <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
@@ -34,7 +34,7 @@
     #clearSearchBtn { position:absolute; right:3rem; top:50%; transform:translateY(-50%); cursor:pointer; color:#888; font-size:1.2rem; display:none; }
     .kv { font-size:.9rem; color:#6c757d; }
 
-    /* Product typeahead (same pattern as reserve_manage) */
+    /* Product typeahead */
     .prod-search-wrap { position: relative; }
     .prod-results {
       position: absolute; z-index: 1080; left:0; right:0; top:100%;
@@ -45,11 +45,12 @@
     .prod-item { padding:.5rem .75rem; cursor:pointer; }
     .prod-item:hover, .prod-item.active { background:#f1f3f5; }
     .prod-badge { font-size:.75rem; }
-    .thumb-40 { width:40px; height:40px; object-fit:contain; border:1px solid #eee; border-radius:.5rem; background:#fff; }
+
+    .thumb-48 { width:48px; height:48px; object-fit:contain; background:#fff; }
   </style>
 </head>
 <body class="bg-light">
-  <!-- Navbar（沿用現有） -->
+  <!-- Navbar -->
   <div id="navbarContainer"></div>
 
   <div class="container py-4">
@@ -171,23 +172,22 @@
               </div>
             </div>
 
-            <!-- 產品搜尋（像 reserve_manage 的下拉） -->
+            <!-- 產品搜尋（typeahead） -->
             <div class="prod-search-wrap mb-3">
               <input id="prodSearch" type="text" class="form-control" placeholder="輸入英文/中文品名或條碼 (≥2字開始搜尋)">
               <div id="prodResults" class="prod-results"></div>
-              <div class="form-text">點選結果會新增到下方清單，並自動帶入名稱／條碼／連結／圖片。</div>
+              <div class="form-text">點選結果會新增到下方清單，並自動帶入名稱／條碼／圖片。</div>
             </div>
 
             <div class="table-responsive">
               <table class="table table-sm align-middle table-items">
                 <thead class="table-light">
                   <tr>
-                    <th style="width:20%">貨品名稱</th>
-                    <th style="width:15%">條碼</th>
-                    <th style="width:10%">數量</th>
-                    <th style="width:35%">產品連結（可選）</th>
-                    <th style="width:10%">圖片（可選）</th>
-                    <th style="width:10%">操作</th>
+                    <th style="width:30%">貨品名稱</th>
+                    <th style="width:20%">條碼</th>
+                    <th style="width:15%">數量</th>
+                    <th style="width:15%">照片</th>
+                    <th style="width:20%">操作</th>
                   </tr>
                 </thead>
                 <tbody id="itemsTbody"></tbody>
@@ -216,7 +216,7 @@
         </div>
         <div class="modal-body">
           <video id="qr-video" style="width:100%;height:auto;"></video>
-          <div class="form-text">掃描後會在貨品清單新增一行，並嘗試從商品庫填充名稱。</div>
+          <div class="form-text">掃描後會在貨品清單新增一行，並嘗試從商品庫填充名稱與圖片。</div>
         </div>
       </div>
     </div>
@@ -240,7 +240,6 @@
     const PICKUP_COLL = 'distributor_pickups';
     const DIST_COLL = 'distributors';
     const PRODUCT_COLL = 'pricetaglabel';
-    const SHORT_LINK_PREFIX = "https://trulymarket.ca/products/";
 
     // ===== 狀態 =====
     let allDocs = [], filteredDocs = [];
@@ -261,28 +260,13 @@
       });
     });
 
-    // ===== Helpers for product handle/short link (used by reserve_manage too) =====
-    function extractHandleFromUrl(url) {
-      if (!url) return "";
-      try {
-        const u = new URL(url);
-        const m = u.pathname.match(/\/products\/([^\/?#]+)/i);
-        return m ? decodeURIComponent(m[1]) : "";
-      } catch {
-        const m = (url || "").match(/\/products\/([^\/?#]+)/i);
-        return m ? decodeURIComponent(m[1]) : "";
-      }
-    }
-    function resolveHandle(p) {
-      const direct = (typeof p.Handle==="string" && p.Handle.trim()) || (typeof p.handle==="string" && p.handle.trim());
-      if (direct) return direct.trim();
-      const fromUrl = extractHandleFromUrl(p["Product URL"] || p.ProductURL || "");
-      return fromUrl || "";
-    }
+    // ===== Utility =====
+    function escapeHtml(str){ return (str||'').replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
 
-    // ===== 載入分銷商主檔（只取啟用） =====
+    // ===== 分銷商主檔 =====
     async function loadDistributors(){
-      const snap = await db.collection(DIST_COLL).where('status','in',['ACTIVE',null]).orderBy('name').get().catch(async ()=>{
+      const snap = await db.collection(DIST_COLL).where('status','in',['ACTIVE', null]).orderBy('name').get().catch(async ()=>{
+        // Fallback: if compound query not indexed, get all
         const s = await db.collection(DIST_COLL).orderBy('name').get();
         return s;
       });
@@ -305,7 +289,7 @@
       document.getElementById('distEmail').value = d?.email || '';
     }
 
-    // ===== 載入提貨資料 =====
+    // ===== 提貨清單 =====
     async function loadData(){
       const snap = await db.collection(PICKUP_COLL).orderBy('createdAt','desc').get();
       allDocs = snap.docs.map(d=>({ id:d.id, ...d.data() }));
@@ -406,14 +390,14 @@
     });
     function clearSearch(){ document.getElementById('searchInput').value=''; applyFilters(); }
 
-    // ===== CRUD =====
+    // ===== CRUD：Modal 開啟/編輯 =====
     async function openNewPickup(){
       await loadDistributors();
       resetForm();
       fillDistributorSelect();
       document.getElementById('pickupModalTitle').innerText='新增提貨記錄';
       new bootstrap.Modal(document.getElementById('pickupModal')).show();
-      wireProductTypeahead(); // wire after modal shows controls
+      wireProductTypeahead();
     }
 
     async function openEditPickup(id){
@@ -424,7 +408,7 @@
       const data = doc.data();
       document.getElementById('docId').value = id;
       fillDistributorSelect(data.distributorId);
-      // 如 master 已刪除，臨時加一個 option 以免空白
+      // 若 master 已刪除，暫加一個 option
       if (data.distributorId && !distributors.find(d=>d.id===data.distributorId)){
         const sel = document.getElementById('distributorSelect');
         const opt = document.createElement('option');
@@ -436,12 +420,14 @@
       }
       document.getElementById('status').value = data.status || 'OPEN';
       document.getElementById('notes').value = data.notes || '';
-      // 由記錄覆蓋顯示欄位（防止主檔改動導致歷史顯示不一致）
+      // 顯示欄位以保存時的資料為準
       document.getElementById('distContact').value = data.distributorContact || '';
       document.getElementById('distTel').value = data.distributorPhone || '';
       document.getElementById('distEmail').value = data.distributorEmail || '';
 
-      const items = Array.isArray(data.items)? data.items:[]; items.forEach(addItemRowWithData);
+      const items = Array.isArray(data.items)? data.items:[];
+      items.forEach(addItemRowWithData);
+
       document.getElementById('pickupModalTitle').innerText='編輯提貨記錄';
       new bootstrap.Modal(document.getElementById('pickupModal')).show();
       wireProductTypeahead();
@@ -452,44 +438,66 @@
       document.getElementById('docId').value='';
       document.getElementById('itemsTbody').innerHTML='';
       addItemRow();
-      // 綁定下拉改變時更新顯示欄位
+
       setTimeout(()=>{
         const sel = document.getElementById('distributorSelect');
         if (sel) sel.onchange = applyDistributorDetails;
       },0);
-      // 清空 typeahead
+
       const ps = document.getElementById('prodSearch');
       const pr = document.getElementById('prodResults');
       if (ps) ps.value = '';
       if (pr) { pr.innerHTML=''; pr.style.display='none'; }
     }
 
-    function addItemRow(){ addItemRowWithData({ title:'', barcode:'', qty:1, productUrl:'', imageUrl:'' }); }
+    // ===== Items table (no product link column; photo shows thumbnail) =====
+    function addItemRow(){ addItemRowWithData({ title:'', barcode:'', qty:1, imageUrl:'' }); }
+
     function addItemRowWithData(item){
       const tr = document.createElement('tr');
+      const img = escapeHtml(item.imageUrl || '');
       tr.innerHTML = `
-        <td><input type="text" class="form-control form-control-sm" placeholder="名稱" value="${escapeHtml(item.title||'')}" /></td>
-        <td><input type="text" class="form-control form-control-sm" placeholder="條碼" value="${escapeHtml(item.barcode||'')}" /></td>
-        <td style="max-width:90px"><input type="number" min="1" class="form-control form-control-sm" value="${item.qty||1}" /></td>
-        <td><input type="text" class="form-control form-control-sm" placeholder="https://…" value="${escapeHtml(item.productUrl||'')}" /></td>
-        <td><input type="text" class="form-control form-control-sm" placeholder="https://image…" value="${escapeHtml(item.imageUrl||'')}" /></td>
-        <td><button class="btn btn-sm btn-outline-danger" type="button" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>`;
+        <td><input name="title" type="text" class="form-control form-control-sm" placeholder="名稱" value="${escapeHtml(item.title||'')}" /></td>
+        <td><input name="barcode" type="text" class="form-control form-control-sm" placeholder="條碼" value="${escapeHtml(item.barcode||'')}" /></td>
+        <td style="max-width:110px"><input name="qty" type="number" min="1" class="form-control form-control-sm" value="${item.qty||1}" /></td>
+        <td class="text-center">
+          <img src="${img || '/images/truly_favicon_o1.png'}" class="thumb-48 border rounded" alt="img" onerror="this.src='/images/truly_favicon_o1.png'">
+          <input name="imageUrl" type="hidden" value="${img}">
+          <div><button class="btn btn-sm btn-outline-secondary mt-1" type="button" onclick="changeRowImage(this)">更換圖片</button></div>
+        </td>
+        <td>
+          <button class="btn btn-sm btn-outline-danger" type="button" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button>
+        </td>`;
       document.getElementById('itemsTbody').appendChild(tr);
+    }
+
+    function changeRowImage(btn){
+      const tr = btn.closest('tr');
+      const hidden = tr.querySelector('input[name="imageUrl"]');
+      const cur = hidden.value || '';
+      const url = prompt('輸入圖片 URL：', cur);
+      if (url === null) return;
+      hidden.value = url.trim();
+      const img = tr.querySelector('img');
+      img.src = hidden.value || '/images/truly_favicon_o1.png';
     }
 
     function collectItems(){
       return Array.from(document.querySelectorAll('#itemsTbody tr')).map(r=>{
-        const [title, barcode, qty, productUrl, imageUrl] = r.querySelectorAll('input');
+        const title = r.querySelector('input[name="title"]');
+        const barcode = r.querySelector('input[name="barcode"]');
+        const qty = r.querySelector('input[name="qty"]');
+        const imageUrl = r.querySelector('input[name="imageUrl"]');
         return {
           title: title.value.trim(),
           barcode: barcode.value.trim(),
           qty: Math.max(1, parseInt(qty.value,10)||1),
-          productUrl: productUrl.value.trim(),
           imageUrl: imageUrl.value.trim()
         };
       }).filter(i=> i.title || i.barcode);
     }
 
+    // ===== Save / Delete / Status =====
     async function savePickup(e){
       e.preventDefault();
       const id = document.getElementById('docId').value;
@@ -524,9 +532,8 @@
     async function deletePickup(id){ if (!confirm('確定刪除這筆記錄？')) return; await db.collection(PICKUP_COLL).doc(id).delete(); await loadData(); }
     async function updateStatus(id, s){ await db.collection(PICKUP_COLL).doc(id).set({ status:s, updatedAt:new Date().toISOString() },{ merge:true }); await loadData(); }
 
-    // ===== 產品 Typeahead（pricetaglabel，同 reserve_manage 思路） =====
+    // ===== Product Typeahead (pricetaglabel) =====
     async function preloadProducts() {
-      // 若資料量大建議改為分頁 + 前綴索引欄位（例如 TitleLower / BarcodeLower）
       const snap = await db.collection(PRODUCT_COLL).get();
       productsCache = snap.docs.map(d => {
         const x = d.data();
@@ -536,13 +543,10 @@
           ProductNameEng: x.ProductNameEng || x.Title || "",
           ProductNameChi: x.ProductNameChi || "",
           Barcode: String(x.Barcode || "").trim(),
-          ImageURL: x["Image URL"] || "",
-          ProductURL: x["Product URL"] || x.ProductURL || "",
-          Handle: (x.Handle || x.handle || "")
+          ImageURL: x["Image URL"] || ""
         };
       });
     }
-
     function normalize(s){ return String(s||"").toLowerCase(); }
     function filterProducts(term) {
       if (!term || term.length < 2) return [];
@@ -561,7 +565,6 @@
       }
       return out;
     }
-
     function showProdResults(list) {
       const box = document.getElementById("prodResults");
       if (!list.length) { hideProdResults(); return; }
@@ -569,7 +572,7 @@
       box.innerHTML = list.map((p, i)=>`
         <div class="prod-item" data-idx="${i}">
           <div class="d-flex align-items-start gap-2">
-            <img src="${p.ImageURL || '/images/truly_favicon_o1.png'}" class="thumb-40" alt="">
+            <img src="${p.ImageURL || '/images/truly_favicon_o1.png'}" class="thumb-48 border rounded" alt="">
             <div class="flex-grow-1">
               <div class="fw-semibold">${escapeHtml(p.ProductNameEng || p.Title)}</div>
               <div class="text-muted small">${escapeHtml(p.ProductNameChi || "")}</div>
@@ -592,31 +595,23 @@
       box.innerHTML = "";
       prodActiveIndex = -1;
     }
-
     function chooseProduct(p) {
       if (!p) return;
-      // Short URL（可用於匯出或後續使用）
-      const handle = resolveHandle(p);
-      const shortUrl = handle ? (SHORT_LINK_PREFIX + handle) : "";
-
       addItemRowWithData({
         title: p.ProductNameEng || p.Title || "",
         barcode: p.Barcode || "",
         qty: 1,
-        productUrl: p.ProductURL || shortUrl || "",
         imageUrl: p.ImageURL || ""
       });
-
       const ps = document.getElementById("prodSearch");
       ps.value = "";
       hideProdResults();
-
-      // 聚焦到剛新增列的數量欄位
+      // focus last qty
       setTimeout(()=>{
         const rows = document.querySelectorAll('#itemsTbody tr');
         const last = rows[rows.length-1];
         if (!last) return;
-        const qty = last.querySelector('input[type="number"]');
+        const qty = last.querySelector('input[name="qty"]');
         if (qty) qty.focus();
       }, 60);
     }
@@ -626,7 +621,6 @@
       const term = document.getElementById("prodSearch").value.trim();
       showProdResults(filterProducts(term));
     }, 200);
-
     function onProdSearchKeydown(e) {
       const box = document.getElementById("prodResults");
       if (box.style.display !== "block") return;
@@ -648,7 +642,6 @@
       }
     }
     function prodSearchBlur(){ setTimeout(()=> hideProdResults(), 150); }
-
     function wireProductTypeahead(){
       const ps = document.getElementById("prodSearch");
       if (!ps) return;
@@ -660,7 +653,7 @@
       ps.addEventListener("blur", prodSearchBlur);
     }
 
-    // ===== 掃碼加入貨品（可選） =====
+    // ===== 掃碼加入貨品 =====
     document.getElementById('scanModal').addEventListener('shown.bs.modal', startScan);
     document.getElementById('scanModal').addEventListener('hidden.bs.modal', stopScan);
 
@@ -684,20 +677,15 @@
     async function handleScannedCode(barcode){
       try {
         const q = await db.collection(PRODUCT_COLL).where('Barcode','==',barcode).limit(1).get();
-        let title='', productUrl='', imageUrl='';
+        let title='', imageUrl='';
         if (!q.empty){
           const d=q.docs[0].data();
           title=d.ProductNameEng || d.Title || '';
-          productUrl=d["Product URL"] || d.ProductURL || '';
           imageUrl=d["Image URL"] || '';
-          if (!productUrl) {
-            const handle = resolveHandle(d);
-            if (handle) productUrl = SHORT_LINK_PREFIX + handle;
-          }
         }
-        addItemRowWithData({ title: title||'', barcode, qty:1, productUrl, imageUrl });
+        addItemRowWithData({ title: title||'', barcode, qty:1, imageUrl });
       } catch(e){
-        addItemRowWithData({ title:'', barcode, qty:1, productUrl:'', imageUrl:'' });
+        addItemRowWithData({ title:'', barcode, qty:1, imageUrl:'' });
       }
     }
 
@@ -720,13 +708,17 @@
       const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`distributor_pickups_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     }
 
-    // ===== 工具 =====
-    function escapeHtml(str){ return (str||'').replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
-
     // ===== 初始化 =====
     (async()=>{
       await Promise.all([loadDistributors(), preloadProducts()]);
       await loadData();
+      // global typeahead listeners for safety (also re-wired on modal open)
+      const ps = document.getElementById("prodSearch");
+      if (ps){
+        ps.addEventListener("input", onProdSearchInput);
+        ps.addEventListener("keydown", onProdSearchKeydown);
+        ps.addEventListener("blur", prodSearchBlur);
+      }
     })();
   </script>
 
