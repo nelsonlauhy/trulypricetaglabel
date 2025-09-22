@@ -415,7 +415,7 @@
     // ===== CRUD：Modal 開啟/編輯 =====
     async function openNewPickup(){
       await Promise.all([loadDistributors(), preloadProducts()]);
-      resetForm();
+      resetForm(false); // no default empty row
       fillDistributorSelect();
       document.getElementById('pickupModalTitle').innerText='新增提貨記錄';
       new bootstrap.Modal(document.getElementById('pickupModal')).show();
@@ -424,7 +424,7 @@
 
     async function openEditPickup(id){
       await Promise.all([loadDistributors(), preloadProducts()]);
-      resetForm();
+      resetForm(false); // clear first
       const doc = await db.collection(PICKUP_COLL).doc(id).get();
       if (!doc.exists){ alert('記錄不存在'); return; }
       const data = doc.data();
@@ -455,13 +455,12 @@
       wireProductTypeahead();
     }
 
-    function resetForm(){
+    function resetForm(addDefaultRow = false){
       document.getElementById('pickupForm').reset();
       document.getElementById('docId').value='';
       document.getElementById('itemsTbody').innerHTML='';
-      // 預設空白行（可刪除）
-      addItemRow();
-
+      // IMPORTANT: no default empty row on new creation. Only add if explicitly requested.
+      if (addDefaultRow) addItemRow();
       const ps = document.getElementById('prodSearch');
       const pr = document.getElementById('prodResults');
       if (ps) ps.value = '';
