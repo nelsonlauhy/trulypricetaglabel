@@ -46,17 +46,24 @@
     </div>
 
     <!-- 篩選與搜尋 -->
-    <div class="row filter-row align-items-center mb-3">
-      <div class="col-12 col-md-5">
+    <div class="d-flex flex-wrap flex-md-nowrap align-items-center gap-2 mb-3">
+
+      <!-- 搜尋 + 掃碼（佔滿剩餘寬度） -->
+      <div class="flex-grow-1">
         <div class="input-group position-relative">
-          <input id="searchInput" type="text" class="form-control" placeholder="搜尋：分銷商／公司／聯絡／電話／電郵／備註／貨品" />
+          <input id="searchInput" type="text" class="form-control"
+                placeholder="搜尋：分銷商／公司／聯絡／電話／電郵／備註／貨品" />
           <span id="clearSearchBtn">&times;</span>
-          <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#scanModal" title="掃描條碼加入貨品至草稿">
+          <button class="btn btn-outline-secondary" type="button"
+                  data-bs-toggle="modal" data-bs-target="#scanModal"
+                  title="掃描條碼加入貨品至草稿">
             <i class="bi bi-upc-scan"></i>
           </button>
         </div>
       </div>
-      <div class="col-6 col-md-3">
+
+      <!-- 狀態（寬度自適應、不撐開） -->
+      <div class="flex-shrink-0">
         <select id="statusFilter" class="form-select">
           <option value="ALL">狀態：全部</option>
           <option value="OPEN">未提貨</option>
@@ -64,13 +71,16 @@
           <option value="CANCELLED">已取消</option>
         </select>
       </div>
-      <div class="col-6 col-md-2">
+
+      <!-- 日期 from / to（固定最小寬度，避免擠壓） -->
+      <div class="flex-shrink-0">
         <input id="dateFrom" type="date" class="form-control" title="開始日期" />
       </div>
-      <div class="col-6 col-md-2 mt-2 mt-md-0">
+      <div class="flex-shrink-0">
         <input id="dateTo" type="date" class="form-control" title="結束日期" />
       </div>
     </div>
+
 
     <!-- 統計摘要 -->
     <div class="mb-3 small text-muted" id="summaryBar">載入中…</div>
