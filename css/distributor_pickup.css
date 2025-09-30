@@ -74,13 +74,20 @@ details.summary-block[open] summary .chev { transform: rotate(90deg); }
 }
 
 /* 日期內嵌提示標籤 */
+
 .date-wrap{ position:relative; }
-.date-wrap .date-placeholder{
-  position:absolute; left:.75rem; top:50%;
-  transform:translateY(-50%); font-size:.95rem;
-  color:#6c757d; pointer-events:none; opacity:.85;
-  transition: opacity .12s ease, transform .12s ease;
+.date-wrap .date-badge{
+  position:absolute;
+  left:.75rem;
+  top:-.55rem;               /* 漂浮在邊框之上，不會與值重疊 */
+  padding:0 .35rem;
+  background:var(--bs-body-bg,#fff);
+  font-size:.75rem;
+  line-height:1;
+  color:#6c757d;
+  border-radius:.25rem;
 }
+.date-wrap input:focus + .date-badge{ color:var(--bs-primary); }
 /* 聚焦或有值時，收起提示 */
 .date-wrap input:focus + .date-placeholder{
   opacity:0; transform:translateY(-50%) scale(0.98);
