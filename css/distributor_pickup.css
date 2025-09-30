@@ -1,56 +1,11 @@
 body { background:#f8f9fa; }
 .page-title { display:flex; align-items:center; gap:.5rem; }
-.filter-row { gap:.5rem; }
-.list-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
-.badge-dot { width:.5rem; height:.5rem; display:inline-block; border-radius:50%; margin-right:.35rem; }
-.status-open { background:#0d6efd; }
-.status-picked { background:#198754; }
-.status-cancel { background:#6c757d; }
-.item-chip { border:1px solid #dee2e6; border-radius:999px; padding:.125rem .5rem; font-size:.85rem; background:#fff; }
+
 .truncate { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .required::after { content:" *"; color:#dc3545; }
-#clearSearchBtn { position:absolute; right:3rem; top:50%; transform:translateY(-50%); cursor:pointer; color:#888; font-size:1.2rem; display:none; }
 .kv { font-size:.9rem; color:#6c757d; }
 
-/* Items table */
-.table-items td, .table-items th { vertical-align: middle; }
-.thumb-48 { width:48px; height:48px; object-fit:contain; background:#fff; }
-.form-control-locked[readonly] { background:#f1f3f5; cursor:not-allowed; }
-
-/* Product search (typeahead) */
-.prod-search-wrap { position: relative; }
-.prod-results {
-  position: absolute; z-index: 1080; left:0; right:0; top:100%;
-  background:#fff; border:1px solid rgba(0,0,0,.125); border-top:none;
-  max-height: 50vh;
-  overflow:auto; box-shadow: 0 6px 18px rgba(0,0,0,.08);
-  display:none;
-}
-.prod-item { padding:.5rem .75rem; cursor:pointer; }
-.prod-item:hover, .prod-item.active { background:#f1f3f5; }
-.prod-badge { font-size:.75rem; }
-
-/* Modal layout refinements */
-.modal-xl { --bs-modal-width: 1080px; }
-.modal-content { max-height: 92vh; display:flex; flex-direction:column; }
-.modal-header, .modal-footer { flex: 0 0 auto; }
-.modal-body { flex: 1 1 auto; overflow:auto; }
-
-/* Keep search area visible while scrolling */
-.sticky-search {
-  position: sticky; top: 0; z-index: 1040;
-  background:#fff; padding-top:.25rem; padding-bottom:.5rem; border-bottom:1px solid #eee;
-}
-
-/* Collapsible basic section */
-details.summary-block summary {
-  list-style: none; cursor: pointer; user-select: none; display:flex; align-items:center; gap:.5rem;
-}
-details.summary-block summary::-webkit-details-marker { display:none; }
-details.summary-block[open] summary .chev { transform: rotate(90deg); }
-.chev { transition: transform .15s ease; }
-
-/* 讓整排一行，手機可換行 */
+/* 一行 filters；md 以上不換行 */
 .filters-inline{
   display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
 }
@@ -58,7 +13,7 @@ details.summary-block[open] summary .chev { transform: rotate(90deg); }
   .filters-inline{ flex-wrap:nowrap; }
 }
 
-/* 搜尋欄：縮窄（桌面最多 ~520px）*/
+/* 搜尋欄縮窄（視窗窄時會收縮） */
 .filters-search{ flex:0 1 520px; min-width: 280px; }
 
 /* 其他欄位固定最小寬度 */
@@ -66,40 +21,43 @@ details.summary-block[open] summary .chev { transform: rotate(90deg); }
 .filters-item .form-select,
 .filters-item .form-control{ min-width: 11rem; }
 
-/* 清除鍵維持原位 */
+/* 狀態左邊的清除鍵仍在 input-group 內右側 */
 #clearSearchBtn{
   position:absolute; right:3rem; top:50%;
   transform:translateY(-50%); cursor:pointer;
   color:#888; font-size:1.2rem; display:none;
 }
 
-/* 日期內嵌提示標籤 */
+/* Items table */
+.table-items td, .table-items th { vertical-align: middle; }
+.thumb-48 { width:48px; height:48px; object-fit:contain; background:#fff; }
+.form-control-locked[readonly] { background:#f1f3f5; cursor:not-allowed; }
 
-.date-wrap{ position:relative; }
-.date-wrap .date-badge{
-  position:absolute;
-  left:.75rem;
-  top:-.55rem;               /* 漂浮在邊框之上，不會與值重疊 */
-  padding:0 .35rem;
-  background:var(--bs-body-bg,#fff);
-  font-size:.75rem;
-  line-height:1;
-  color:#6c757d;
-  border-radius:.25rem;
+/* Product search dropdown（提高層級避免被裁切） */
+.prod-search-wrap { position: relative; }
+.prod-results{
+  position:absolute; z-index:2000; left:0; right:0; top:100%;
+  background:#fff; border:1px solid rgba(0,0,0,.125); border-top:none;
+  max-height:50vh; overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.08);
+  display:none;
 }
-.date-wrap input:focus + .date-badge{ color:var(--bs-primary); }
-/* 聚焦或有值時，收起提示 */
-.date-wrap input:focus + .date-placeholder{
-  opacity:0; transform:translateY(-50%) scale(0.98);
-}
-.date-wrap.has-value .date-placeholder{
-  opacity:0; transform:translateY(-50%) scale(0.98);
-}
-.filters-item .input-group-text {
-  font-size: .875rem;  /* 字體稍小 */
-  min-width: 3.5rem;   /* 固定寬度，對齊一致 */
-  justify-content: center;
-}
-.filters-item .form-control[type="date"] {
-  min-width: 10rem;    /* 日期欄最小寬度 */
-}
+.prod-item{ padding:.5rem .75rem; cursor:pointer; }
+.prod-item:hover, .prod-item.active{ background:#f1f3f5; }
+.prod-badge{ font-size:.75rem; }
+
+/* Modal layout refinements */
+.modal-xl { --bs-modal-width: 1080px; }
+.modal-content { max-height: 92vh; display:flex; flex-direction:column; }
+.modal-header, .modal-footer { flex:0 0 auto; }
+.modal-body { flex:1 1 auto; overflow:auto; }
+.sticky-search{ position:sticky; top:0; z-index:1040; background:#fff; padding-top:.25rem; padding-bottom:.5rem; border-bottom:1px solid #eee; overflow:visible; }
+
+/* Summary badges */
+.badge-dot { width:.5rem; height:.5rem; display:inline-block; border-radius:50%; margin-right:.35rem; }
+.status-open { background:#0d6efd; }
+.status-picked { background:#198754; }
+.status-cancel { background:#6c757d; }
+
+/* Input-group 日期標籤微調 */
+.filters-item .input-group-text{ font-size:.875rem; min-width:3.5rem; justify-content:center; }
+.filters-item .form-control[type="date"]{ min-width:10rem; }

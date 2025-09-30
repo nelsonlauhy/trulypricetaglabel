@@ -7,10 +7,7 @@ const PRODUCT_COLL = 'pricetaglabel';
 let allDocs = [], filteredDocs = [];
 let distributors = [];
 let codeReader = null, videoDevices = [], selectedDeviceId = null, currentDeviceIndex = 0;
-
-// Product cache for typeahead
-let productsCache = [];
-let prodActiveIndex = -1;
+let productsCache = []; let productsLoaded = false; let prodActiveIndex = -1;
 
 // ===== Navbar =====
 fetch('/navbar.html').then(r=>r.text()).then(html=>{
@@ -24,6 +21,8 @@ fetch('/navbar.html').then(r=>r.text()).then(html=>{
 
 // ===== 工具 =====
 function escapeHtml(str){ return (str||'').replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
+function debounce(fn, wait=150){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); }; }
+function normalize(s){ return String(s||"").toLowerCase(); }
 
 // ===== 分銷商主檔 =====
 async function loadDistributors(){
@@ -33,7 +32,6 @@ async function loadDistributors(){
   });
   distributors = snap.docs.map(d=>({ id:d.id, ...d.data() }));
 }
-
 function fillDistributorSelect(selectedId){
   const sel = document.getElementById('distributorSelect');
   sel.innerHTML = '<option value="" disabled selected>— 請選擇分銷商 —</option>' +
@@ -42,7 +40,6 @@ function fillDistributorSelect(selectedId){
   applyDistributorDetails();
   sel.onchange = applyDistributorDetails;
 }
-
 function applyDistributorDetails(){
   const id = document.getElementById('distributorSelect').value;
   const d = distributors.find(x=>x.id===id);
@@ -57,7 +54,6 @@ async function loadData(){
   allDocs = snap.docs.map(d=>({ id:d.id, ...d.data() }));
   applyFilters();
 }
-
 function applyFilters(){
   const q = (document.getElementById('searchInput').value||'').trim().toLowerCase();
   const status = document.getElementById('statusFilter').value;
@@ -90,7 +86,6 @@ function applyFilters(){
   renderList();
   document.getElementById('clearSearchBtn').style.display = q ? 'inline' : 'none';
 }
-
 function renderSummary(){
   const total = filteredDocs.length;
   const open = filteredDocs.filter(x => (x.status||'OPEN')==='OPEN').length;
@@ -102,7 +97,6 @@ function renderSummary(){
     <span class="me-3"><span class="badge-dot status-cancel"></span>已取消：${cancelled}</span>
     <span class="text-muted">（共 ${total} 筆）</span>`;
 }
-
 function renderList(){
   const container = document.getElementById('listContainer');
   container.innerHTML='';
@@ -132,7 +126,7 @@ function renderList(){
           </div>
           <div class="col-12 col-md-3">
             <div class="mb-2">${itemsPreview}</div>
-            <div class="list-actions">
+            <div class="list-actions d-flex gap-1 flex-wrap">
               <button class="btn btn-sm btn-outline-primary" onclick="openEditPickup('${rec.id}')"><i class="bi bi-pencil"></i> 編輯</button>
               ${status!=='PICKED'? `<button class='btn btn-sm btn-success' onclick="updateStatus('${rec.id}','PICKED')"><i class='bi bi-check2-circle'></i> 設為已提貨</button>`:''}
               ${status!=='OPEN'? `<button class='btn btn-sm btn-outline-primary' onclick="updateStatus('${rec.id}','OPEN')"><i class='bi bi-arrow-counterclockwise'></i> 設為未提貨</button>`:''}
@@ -146,23 +140,21 @@ function renderList(){
   });
 }
 
-// ===== 搜尋 =====
+// ===== 搜尋欄行為 =====
 document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('searchInput').addEventListener('input', applyFilters);
   document.getElementById('statusFilter').addEventListener('change', applyFilters);
   document.getElementById('dateFrom').addEventListener('change', applyFilters);
   document.getElementById('dateTo').addEventListener('change', applyFilters);
-
   document.getElementById('clearSearchBtn').addEventListener('click', ()=>{
     document.getElementById('searchInput').value=''; applyFilters();
   });
 
   document.getElementById('btnOpenNew').addEventListener('click', openNewPickup);
   document.getElementById('btnExportCSV').addEventListener('click', exportCSV);
-
   document.getElementById('pickupForm').addEventListener('submit', savePickup);
 
-  // Scan modal open/close
+  // 掃碼 modal
   document.getElementById('scanModal').addEventListener('shown.bs.modal', startScan);
   document.getElementById('scanModal').addEventListener('hidden.bs.modal', stopScan);
   document.getElementById('btnSwitchCam').addEventListener('click', switchCamera);
@@ -175,25 +167,29 @@ async function init(){
   await Promise.all([loadDistributors(), preloadProducts()]);
   await loadData();
 
-  // global typeahead listeners (也會在 modal 開啟時重掛)
-  const ps = document.getElementById("prodSearch");
-  if (ps){
-    ps.addEventListener("input", onProdSearchInput);
-    ps.addEventListener("keydown", onProdSearchKeydown);
-    ps.addEventListener("blur", prodSearchBlur);
-  }
+  // Modal 顯示後再掛 typeahead，並自動聚焦
+  document.getElementById('pickupModal').addEventListener('shown.bs.modal', async ()=>{
+    try{
+      if (!productsLoaded || !productsCache.length) await preloadProducts();
+      wireProductTypeahead();
+      const ps = document.getElementById('prodSearch');
+      if (ps) ps.focus();
+    }catch(e){ console.error(e); }
+  });
+  document.getElementById('pickupModal').addEventListener('hidden.bs.modal', ()=>{
+    hideProdResults();
+    const ps = document.getElementById('prodSearch'); if (ps) ps.value='';
+  });
 }
 
 // ===== CRUD：Modal 開啟/編輯 =====
 async function openNewPickup(){
   await Promise.all([loadDistributors(), preloadProducts()]);
-  resetForm(false); // 不要預設空白列
+  resetForm(false);
   fillDistributorSelect();
   document.getElementById('pickupModalTitle').innerText='新增提貨記錄';
   new bootstrap.Modal(document.getElementById('pickupModal')).show();
-  wireProductTypeahead();
 }
-
 async function openEditPickup(id){
   await Promise.all([loadDistributors(), preloadProducts()]);
   resetForm(false);
@@ -202,7 +198,6 @@ async function openEditPickup(id){
   const data = doc.data();
   document.getElementById('docId').value = id;
   fillDistributorSelect(data.distributorId);
-  // 若 master 已刪除，暫加一個 option
   if (data.distributorId && !distributors.find(d=>d.id===data.distributorId)){
     const sel = document.getElementById('distributorSelect');
     const opt = document.createElement('option');
@@ -214,8 +209,6 @@ async function openEditPickup(id){
   }
   document.getElementById('status').value = data.status || 'OPEN';
   document.getElementById('notes').value = data.notes || '';
-
-  // 顯示欄位以保存時的資料為準
   document.getElementById('distContact').value = data.distributorContact || '';
   document.getElementById('distTel').value = data.distributorPhone || '';
   document.getElementById('distEmail').value = data.distributorEmail || '';
@@ -225,23 +218,17 @@ async function openEditPickup(id){
 
   document.getElementById('pickupModalTitle').innerText='編輯提貨記錄';
   new bootstrap.Modal(document.getElementById('pickupModal')).show();
-  wireProductTypeahead();
 }
-
 function resetForm(addDefaultRow = false){
   document.getElementById('pickupForm').reset();
   document.getElementById('docId').value='';
   document.getElementById('itemsTbody').innerHTML='';
   if (addDefaultRow) addItemRow();
-  const ps = document.getElementById('prodSearch');
-  const pr = document.getElementById('prodResults');
-  if (ps) ps.value = '';
-  if (pr) { pr.innerHTML=''; pr.style.display='none'; }
+  const pr = document.getElementById('prodResults'); if (pr){ pr.innerHTML=''; pr.style.display='none'; }
 }
 
-// ===== Items table (name & barcode locked; photo thumbnail; no change-photo btn) =====
+// ===== Items table =====
 function addItemRow(){ addItemRowWithData({ title:'', barcode:'', qty:1, imageUrl:'' }); }
-
 function addItemRowWithData(item){
   const tr = document.createElement('tr');
   const img = escapeHtml(item.imageUrl || '');
@@ -266,7 +253,6 @@ function addItemRowWithData(item){
     </td>`;
   document.getElementById('itemsTbody').appendChild(tr);
 }
-
 function collectItems(){
   return Array.from(document.querySelectorAll('#itemsTbody tr')).map(r=>{
     const title = r.querySelector('input[name="title"]');
@@ -313,7 +299,6 @@ async function savePickup(e){
   bootstrap.Modal.getInstance(document.getElementById('pickupModal')).hide();
   await loadData();
 }
-
 async function deletePickup(id){
   if (!confirm('確定刪除這筆記錄？')) return;
   await db.collection(PICKUP_COLL).doc(id).delete();
@@ -324,22 +309,28 @@ async function updateStatus(id, s){
   await loadData();
 }
 
-// ===== Product Typeahead (pricetaglabel) =====
+// ===== Product Typeahead =====
 async function preloadProducts() {
-  const snap = await db.collection(PRODUCT_COLL).get();
-  productsCache = snap.docs.map(d => {
-    const x = d.data();
-    return {
-      id: d.id,
-      Title: x.Title || "",
-      ProductNameEng: x.ProductNameEng || x.Title || "",
-      ProductNameChi: x.ProductNameChi || "",
-      Barcode: String(x.Barcode || "").trim(),
-      ImageURL: x["Image URL"] || ""
-    };
-  });
+  if (productsLoaded && productsCache.length) return;
+  try{
+    const snap = await db.collection(PRODUCT_COLL).get();
+    productsCache = snap.docs.map(d => {
+      const x = d.data();
+      return {
+        id: d.id,
+        Title: x.Title || "",
+        ProductNameEng: x.ProductNameEng || x.Title || "",
+        ProductNameChi: x.ProductNameChi || "",
+        Barcode: String(x.Barcode || "").trim(),
+        ImageURL: x["Image URL"] || ""
+      };
+    });
+    productsLoaded = true;
+  }catch(e){
+    console.error('preloadProducts error:', e);
+    productsLoaded = false;
+  }
 }
-function normalize(s){ return String(s||"").toLowerCase(); }
 function filterProducts(term) {
   if (!term || term.length < 2) return [];
   const t = normalize(term);
@@ -359,7 +350,21 @@ function filterProducts(term) {
 }
 function showProdResults(list) {
   const box = document.getElementById("prodResults");
+  if (!productsCache || !productsCache.length) {
+    box.innerHTML = `<div class="p-2 text-muted small">
+        未載入產品資料。<button class="btn btn-sm btn-link p-0" id="reloadProductsBtn">重新載入</button>
+      </div>`;
+    box.style.display = "block";
+    const btn = document.getElementById('reloadProductsBtn');
+    if (btn) btn.onclick = async ()=>{
+      await preloadProducts();
+      const term = document.getElementById("prodSearch").value.trim();
+      showProdResults(filterProducts(term));
+    };
+    return;
+  }
   if (!list.length) { hideProdResults(); return; }
+
   prodActiveIndex = -1;
   box.innerHTML = list.map((p, i)=>`
     <div class="prod-item" data-idx="${i}">
@@ -387,28 +392,15 @@ function hideProdResults() {
   box.innerHTML = "";
   prodActiveIndex = -1;
 }
-function chooseProduct(p) {
-  if (!p) return;
-  addItemRowWithData({
-    title: p.ProductNameEng || p.Title || "",
-    barcode: p.Barcode || "",
-    qty: 1,
-    imageUrl: p.ImageURL || ""
-  });
-  const ps = document.getElementById("prodSearch");
-  ps.value = "";
-  hideProdResults();
-  setTimeout(()=>{
-    const rows = document.querySelectorAll('#itemsTbody tr');
-    const last = rows[rows.length-1];
-    if (!last) return;
-    const qty = last.querySelector('input[name="qty"]');
-    if (qty) qty.focus();
-  }, 60);
-}
-function debounce(fn, wait=150){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); }; }
 const onProdSearchInput = debounce(()=>{
   const term = document.getElementById("prodSearch").value.trim();
+  if (term.length < 2) {
+    const box = document.getElementById("prodResults");
+    box.innerHTML = `<div class="p-2 text-muted small">請輸入至少 2 個字</div>`;
+    box.style.display = "block";
+    prodActiveIndex = -1;
+    return;
+  }
   showProdResults(filterProducts(term));
 }, 200);
 function onProdSearchKeydown(e) {
@@ -442,6 +434,25 @@ function wireProductTypeahead(){
   ps.addEventListener("keydown", onProdSearchKeydown);
   ps.addEventListener("blur", prodSearchBlur);
 }
+function chooseProduct(p) {
+  if (!p) return;
+  addItemRowWithData({
+    title: p.ProductNameEng || p.Title || "",
+    barcode: p.Barcode || "",
+    qty: 1,
+    imageUrl: p.ImageURL || ""
+  });
+  const ps = document.getElementById("prodSearch");
+  ps.value = "";
+  hideProdResults();
+  setTimeout(()=>{
+    const rows = document.querySelectorAll('#itemsTbody tr');
+    const last = rows[rows.length-1];
+    if (!last) return;
+    const qty = last.querySelector('input[name="qty"]');
+    if (qty) qty.focus();
+  }, 60);
+}
 
 // ===== 掃碼加入貨品 =====
 async function startScan(){
@@ -465,7 +476,6 @@ async function startScan(){
     });
   } catch(e){ alert('鏡頭錯誤：'+e); stopScan(); }
 }
-
 async function handleScannedCode(barcode){
   try {
     const q = await db.collection(PRODUCT_COLL).where('Barcode','==',barcode).limit(1).get();
@@ -480,7 +490,6 @@ async function handleScannedCode(barcode){
     addItemRowWithData({ title:'', barcode, qty:1, imageUrl:'' });
   }
 }
-
 async function switchCamera(){
   if (!videoDevices.length) return;
   currentDeviceIndex=(currentDeviceIndex+1)%videoDevices.length;
@@ -508,29 +517,7 @@ function exportCSV(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-// 讓 date 欄位在有值時隱藏內嵌提示
-function syncDatePlaceholder(el){
-  const wrap = el.closest('.date-wrap');
-  if (!wrap) return;
-  if (el.value) wrap.classList.add('has-value');
-  else wrap.classList.remove('has-value');
-}
-
-['dateFrom','dateTo'].forEach(id=>{
-  const el = document.getElementById(id);
-  if (!el) return;
-  // 初始同步（如果有預設值）
-  syncDatePlaceholder(el);
-  // 變更時同步
-  el.addEventListener('change', ()=>syncDatePlaceholder(el));
-  el.addEventListener('input',  ()=>syncDatePlaceholder(el));
-  // 亦可選：輸入框點擊時直接打開原生日期選擇器
-  el.addEventListener('focus', ()=>{ if (el.showPicker) try{ el.showPicker(); }catch(e){} });
-});
-
-// ===== 初始化 =====
-async function preloadProducts() { /* defined above; kept for order */ }
-
+// ===== 對外（給 inline onclick 用）=====
 window.openNewPickup = openNewPickup;
 window.openEditPickup = openEditPickup;
 window.updateStatus = updateStatus;
