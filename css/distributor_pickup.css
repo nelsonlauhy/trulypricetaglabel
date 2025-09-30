@@ -49,3 +49,42 @@ details.summary-block summary {
 details.summary-block summary::-webkit-details-marker { display:none; }
 details.summary-block[open] summary .chev { transform: rotate(90deg); }
 .chev { transition: transform .15s ease; }
+
+/* 讓整排一行，手機可換行 */
+.filters-inline{
+  display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+}
+@media (min-width: 768px){
+  .filters-inline{ flex-wrap:nowrap; }
+}
+
+/* 搜尋欄：縮窄（桌面最多 ~520px）*/
+.filters-search{ flex:0 1 520px; min-width: 280px; }
+
+/* 其他欄位固定最小寬度 */
+.filters-item{ flex:0 0 auto; }
+.filters-item .form-select,
+.filters-item .form-control{ min-width: 11rem; }
+
+/* 清除鍵維持原位 */
+#clearSearchBtn{
+  position:absolute; right:3rem; top:50%;
+  transform:translateY(-50%); cursor:pointer;
+  color:#888; font-size:1.2rem; display:none;
+}
+
+/* 日期內嵌提示標籤 */
+.date-wrap{ position:relative; }
+.date-wrap .date-placeholder{
+  position:absolute; left:.75rem; top:50%;
+  transform:translateY(-50%); font-size:.95rem;
+  color:#6c757d; pointer-events:none; opacity:.85;
+  transition: opacity .12s ease, transform .12s ease;
+}
+/* 聚焦或有值時，收起提示 */
+.date-wrap input:focus + .date-placeholder{
+  opacity:0; transform:translateY(-50%) scale(0.98);
+}
+.date-wrap.has-value .date-placeholder{
+  opacity:0; transform:translateY(-50%) scale(0.98);
+}

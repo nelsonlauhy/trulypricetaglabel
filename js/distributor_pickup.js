@@ -508,6 +508,26 @@ function exportCSV(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
+// 讓 date 欄位在有值時隱藏內嵌提示
+function syncDatePlaceholder(el){
+  const wrap = el.closest('.date-wrap');
+  if (!wrap) return;
+  if (el.value) wrap.classList.add('has-value');
+  else wrap.classList.remove('has-value');
+}
+
+['dateFrom','dateTo'].forEach(id=>{
+  const el = document.getElementById(id);
+  if (!el) return;
+  // 初始同步（如果有預設值）
+  syncDatePlaceholder(el);
+  // 變更時同步
+  el.addEventListener('change', ()=>syncDatePlaceholder(el));
+  el.addEventListener('input',  ()=>syncDatePlaceholder(el));
+  // 亦可選：輸入框點擊時直接打開原生日期選擇器
+  el.addEventListener('focus', ()=>{ if (el.showPicker) try{ el.showPicker(); }catch(e){} });
+});
+
 // ===== 初始化 =====
 async function preloadProducts() { /* defined above; kept for order */ }
 
