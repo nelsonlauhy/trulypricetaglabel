@@ -95,3 +95,11 @@ details.summary-block[open] summary .chev { transform: rotate(90deg); }
 .date-wrap.has-value .date-placeholder{
   opacity:0; transform:translateY(-50%) scale(0.98);
 }
+.filters-item .input-group-text {
+  font-size: .875rem;  /* 字體稍小 */
+  min-width: 3.5rem;   /* 固定寬度，對齊一致 */
+  justify-content: center;
+}
+.filters-item .form-control[type="date"] {
+  min-width: 10rem;    /* 日期欄最小寬度 */
+}
