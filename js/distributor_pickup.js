@@ -545,12 +545,23 @@ function exportCSV(){
       r.pickupDate||'', r.status||'', (r.notes||'').replace(/\n/g,' '), itemsText, r.createdAt||'', r.updatedAt||''
     ]);
   });
-  const csv = rows.map(arr=>arr.map(c=>`"${(c||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv],{ type:'text/csv;charset=utf-8;' });
+
+  // ✅ Add BOM (\uFEFF) so Excel detects UTF-8 properly
+  const csvContent = '\uFEFF' + rows
+    .map(arr=>arr.map(c=>`"${(c||'').toString().replace(/"/g,'""')}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob([csvContent],{ type:'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download=`distributor_pickups_${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`distributor_pickups_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
+
 
 // ===== 對外（給 inline onclick 用）=====
 window.openNewPickup = openNewPickup;
