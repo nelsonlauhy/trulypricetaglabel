@@ -101,44 +101,79 @@ function renderList(){
   const container = document.getElementById('listContainer');
   container.innerHTML='';
   if (!filteredDocs.length){ container.innerHTML='<div class="list-group-item text-muted">沒有記錄</div>'; return; }
+
   filteredDocs.forEach(rec=>{
     const status = rec.status || 'OPEN';
-    const badge = status==='OPEN' ? '<span class="badge bg-primary">未提貨</span>' : status==='PICKED' ? '<span class="badge bg-success">已提貨</span>' : '<span class="badge bg-secondary">已取消</span>';
+    const badge = status==='OPEN'
+      ? '<span class="badge bg-primary">未提貨</span>'
+      : status==='PICKED'
+        ? '<span class="badge bg-success">已提貨</span>'
+        : '<span class="badge bg-secondary">已取消</span>';
+
     const dateStr = rec.pickupDate ? new Date(rec.pickupDate).toLocaleDateString('zh-HK') : '-';
-    const itemsPreview = Array.isArray(rec.items)&&rec.items.length
-      ? rec.items.slice(0,3).map(i=>`<span class="item-chip" title="${escapeHtml(i.title||'')}">${escapeHtml((i.title||'').slice(0,16))}×${i.qty||1}</span>`).join(' ')
-      : '<span class="text-muted">（未加入貨品）</span>';
+
+    // items -> line by line
+    const itemsListHTML = (Array.isArray(rec.items) && rec.items.length)
+      ? rec.items.map(i => `
+          <div class="item-line">
+            • ${escapeHtml(i.title || '')}
+            ×${i.qty || 1}
+            ${i.barcode ? `<span class="text-muted">[${escapeHtml(i.barcode)}]</span>` : ''}
+          </div>
+        `).join('')
+      : '<div class="text-muted">（未加入貨品）</div>';
+
     const html = `
       <div class="list-group-item">
-        <div class="row g-2 align-items-center">
+        <div class="row g-2 align-items-start">
+          <!-- 左側：分銷商 / 公司 /（移入）品項逐行 -->
           <div class="col-12 col-md-5">
-            <div class="fw-semibold truncate" title="${escapeHtml(rec.distributorName||'')}">${escapeHtml(rec.distributorName||'')}</div>
-            <div class="small text-muted truncate" title="${escapeHtml(rec.distributorCompany||'')}">${escapeHtml(rec.distributorCompany||'')}</div>
-            <div class="kv">聯絡：${escapeHtml(rec.distributorContact||'-')} · ${escapeHtml(rec.distributorPhone||'-')} · ${escapeHtml(rec.distributorEmail||'-')}</div>
+            <div class="fw-semibold truncate" title="${escapeHtml(rec.distributorName||'')}">
+              ${escapeHtml(rec.distributorName||'')}
+            </div>
+            <div class="small text-muted truncate" title="${escapeHtml(rec.distributorCompany||'')}">
+              ${escapeHtml(rec.distributorCompany||'')}
+            </div>
+            <div class="items-list small mt-1">
+              ${itemsListHTML}
+            </div>
           </div>
+
+          <!-- 中間：提貨日期 -->
           <div class="col-6 col-md-2">
-            <div>提貨日期</div>
+            <div class="text-muted">提貨日期</div>
             <div class="fw-semibold">${dateStr}</div>
           </div>
+
+          <!-- 中間：狀態 -->
           <div class="col-6 col-md-2">
-            <div>狀態</div>
+            <div class="text-muted">狀態</div>
             <div>${badge}</div>
           </div>
+
+          <!-- 右側：操作（移除原先的 items preview） -->
           <div class="col-12 col-md-3">
-            <div class="mb-2">${itemsPreview}</div>
             <div class="list-actions d-flex gap-1 flex-wrap">
-              <button class="btn btn-sm btn-outline-primary" onclick="openEditPickup('${rec.id}')"><i class="bi bi-pencil"></i> 編輯</button>
+              <button class="btn btn-sm btn-outline-primary" onclick="openEditPickup('${rec.id}')">
+                <i class="bi bi-pencil"></i> 編輯
+              </button>
               ${status!=='PICKED'? `<button class='btn btn-sm btn-success' onclick="updateStatus('${rec.id}','PICKED')"><i class='bi bi-check2-circle'></i> 設為已提貨</button>`:''}
               ${status!=='OPEN'? `<button class='btn btn-sm btn-outline-primary' onclick="updateStatus('${rec.id}','OPEN')"><i class='bi bi-arrow-counterclockwise'></i> 設為未提貨</button>`:''}
               ${status!=='CANCELLED'? `<button class='btn btn-sm btn-secondary' onclick="updateStatus('${rec.id}','CANCELLED')"><i class='bi bi-x-circle'></i> 取消</button>`:''}
-              <button class="btn btn-sm btn-outline-danger" onclick="deletePickup('${rec.id}')"><i class="bi bi-trash"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deletePickup('${rec.id}')">
+                <i class="bi bi-trash"></i>
+              </button>
             </div>
           </div>
         </div>
       </div>`;
-    const div = document.createElement('div'); div.innerHTML=html; container.appendChild(div.firstElementChild);
+
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    container.appendChild(div.firstElementChild);
   });
 }
+
 
 // ===== 搜尋欄行為 =====
 document.addEventListener('DOMContentLoaded',()=>{
