@@ -38,7 +38,8 @@ body { background:#f8f9fa; }
 .prod-results{
   position:absolute; z-index:2000; left:0; right:0; top:100%;
   background:#fff; border:1px solid rgba(0,0,0,.125); border-top:none;
-  max-height:50vh; overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.08);
+  max-height:65vh;                   /* ← 調高，保留更多空間給搜尋結果 */
+  overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.08);
   display:none;
 }
 .prod-item{ padding:.5rem .75rem; cursor:pointer; }
@@ -50,7 +51,12 @@ body { background:#f8f9fa; }
 .modal-content { max-height: 92vh; display:flex; flex-direction:column; }
 .modal-header, .modal-footer { flex:0 0 auto; }
 .modal-body { flex:1 1 auto; overflow:auto; }
-.sticky-search{ position:sticky; top:0; z-index:1040; background:#fff; padding-top:.25rem; padding-bottom:.5rem; border-bottom:1px solid #eee; overflow:visible; }
+.sticky-search{ 
+  position:sticky; top:0; z-index:1040; 
+  background:#fff; padding-top:.25rem; padding-bottom:.5rem; 
+  border-bottom:1px solid #eee; 
+  overflow:visible; 
+}
 
 /* Summary badges */
 .badge-dot { width:.5rem; height:.5rem; display:inline-block; border-radius:50%; margin-right:.35rem; }
@@ -61,3 +67,14 @@ body { background:#f8f9fa; }
 /* Input-group 日期標籤微調 */
 .filters-item .input-group-text{ font-size:.875rem; min-width:3.5rem; justify-content:center; }
 .filters-item .form-control[type="date"]{ min-width:10rem; }
+
+/* 商品清單容器：固定高度 + 捲動條 */
+.items-scroll{
+  max-height: 38vh;                /* 固定高度，清單超出即出現滾動條 */
+  overflow: auto;
+  border: 1px solid #eee;
+  border-radius: .5rem;
+}
+.items-scroll thead th{
+  position: sticky; top: 0; z-index: 1;   /* 表頭吸頂 */
+}

@@ -103,51 +103,8 @@
           </div>
 
           <div class="modal-body">
-            <!-- 基本資料 -->
-            <details class="summary-block mb-3" open>
-              <summary class="h6 mb-2"><i class="bi bi-chevron-right chev"></i> 基本資料</summary>
-              <div class="row g-3">
-                <input type="hidden" id="docId" />
-                <div class="col-md-6">
-                  <label class="form-label required">分銷商</label>
-                  <select id="distributorSelect" class="form-select" required></select>
-                  <div class="form-text">來源：distributors 主檔（只顯示啟用的記錄）。</div>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label required">提貨日期</label>
-                  <input id="pickupDate" type="date" class="form-control" required />
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label required">狀態</label>
-                  <select id="status" class="form-select" required>
-                    <option value="OPEN">未提貨</option>
-                    <option value="PICKED">已提貨</option>
-                    <option value="CANCELLED">已取消</option>
-                  </select>
-                </div>
 
-                <!-- 主檔帶出（唯讀） -->
-                <div class="col-md-3">
-                  <label class="form-label">聯絡人</label>
-                  <input id="distContact" type="text" class="form-control" placeholder="—" readonly />
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">電話</label>
-                  <input id="distTel" type="text" class="form-control" placeholder="—" readonly />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">電郵</label>
-                  <input id="distEmail" type="text" class="form-control" placeholder="—" readonly />
-                </div>
-
-                <div class="col-12">
-                  <label class="form-label">備註</label>
-                  <input id="notes" type="text" class="form-control" placeholder="可輸入車牌、付款方式或其他備註" />
-                </div>
-              </div>
-            </details>
-
-            <!-- 搜尋貨品（置頂） -->
+            <!-- ① 商品搜尋區：放最上面，保留最大垂直空間 -->
             <div class="sticky-search">
               <label class="form-label mb-1"><i class="bi bi-bag"></i> 提貨貨品</label>
               <div class="d-flex gap-2 mb-1">
@@ -162,7 +119,46 @@
               <div class="form-text">點選結果會新增到下方清單；品名/條碼鎖定，僅可修改數量。</div>
             </div>
 
-            <div class="table-responsive mt-2">
+            <!-- ② 基本資料（精簡：只留分銷商 / 提貨日期 / 狀態 / 備註） -->
+            <details class="summary-block mb-3" open>
+              <summary class="h6 mb-2"><i class="bi bi-chevron-right chev"></i> 基本資料</summary>
+              <div class="row g-3">
+                <input type="hidden" id="docId" />
+
+                <div class="col-md-6">
+                  <label class="form-label required">分銷商</label>
+                  <select id="distributorSelect" class="form-select" required></select>
+                  <div class="form-text">來源：distributors 主檔（只顯示啟用的記錄）。</div>
+                </div>
+
+                <div class="col-md-3">
+                  <label class="form-label required">提貨日期</label>
+                  <input id="pickupDate" type="date" class="form-control" required />
+                </div>
+
+                <div class="col-md-3">
+                  <label class="form-label required">狀態</label>
+                  <select id="status" class="form-select" required>
+                    <option value="OPEN">未提貨</option>
+                    <option value="PICKED">已提貨</option>
+                    <option value="CANCELLED">已取消</option>
+                  </select>
+                </div>
+
+                <!-- 隱藏的主檔同步欄位（保留 id，JS 仍可寫入） -->
+                <input id="distContact" type="hidden" />
+                <input id="distTel"     type="hidden" />
+                <input id="distEmail"   type="hidden" />
+
+                <div class="col-12">
+                  <label class="form-label">備註</label>
+                  <input id="notes" type="text" class="form-control" placeholder="可輸入車牌、付款方式或其他備註" />
+                </div>
+              </div>
+            </details>
+
+            <!-- ③ 商品清單：包在固定高度容器，超出即捲動 -->
+            <div class="items-scroll table-responsive">
               <table class="table table-sm align-middle table-items">
                 <thead class="table-light">
                   <tr>
@@ -186,6 +182,7 @@
       </div>
     </div>
   </div>
+
 
   <!-- 掃碼 Modal -->
   <div class="modal fade" id="scanModal" tabindex="-1" aria-hidden="true">
