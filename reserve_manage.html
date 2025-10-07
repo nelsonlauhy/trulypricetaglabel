@@ -47,6 +47,29 @@
 
     .badge:empty { display: none !important; }
     .qty-badge{ font-size: 1rem; padding: .4em .65em; line-height: 1; }
+
+    /* 讓 Modal 在任何視窗高度都可滾動顯示完整內容 */
+    .modal .modal-content{
+      max-height: 92vh;            /* 整體高度上限 */
+      display: flex;
+      flex-direction: column;
+    }
+    .modal .modal-header,
+    .modal .modal-footer{
+      flex-shrink: 0;               /* 標頭/標尾固定高度，不被擠壓 */
+    }
+    .modal .modal-body{
+      overflow: auto;               /* 關鍵：出現垂直卷軸 */
+      max-height: calc(92vh - 3.5rem - 3.5rem); /* 92vh 扣掉 header/footer (~3.5rem*2) */
+      -webkit-overflow-scrolling: touch;       /* iOS 慣性滑動 */
+    }
+
+    /* 超細高度時再保險一層（例如 600px 以下） */
+    @media (max-height: 600px){
+      .modal .modal-content{ max-height: 96vh; }
+      .modal .modal-body{ max-height: calc(96vh - 3.5rem - 3.5rem); }
+    }
+
   </style>
 </head>
 <body>
@@ -132,7 +155,8 @@
 
   <!-- Create/Edit Modal -->
   <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
+
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-md-down">
       <div class="modal-content">
         <form id="editForm" onsubmit="saveRecord(event)" novalidate>
           <div class="modal-header">
