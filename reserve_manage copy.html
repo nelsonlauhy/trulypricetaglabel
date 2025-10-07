@@ -357,33 +357,6 @@
       return `R${t}${rnd}`;
     }
 
-    // ===== Normalization for searching =====
-    function normalizeForSearch(s){
-      return String(s||"")
-        .replace(/[\u200B-\u200D\uFEFF]/g, "")                         // zero-width & BOM
-        .replace(/[\uFF01-\uFF5E]/g, ch =>                              // full-width -> half-width
-          String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)
-        )
-        .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")              // strip accents
-        .toLowerCase()
-        .replace(/[–—−]/g, "-")                                         // normalize dashes
-        .replace(/\s+/g, " ")
-        .trim();
-    }
-    function recordToHay(r){
-      return normalizeForSearch(
-        [
-          r.productTitle || "",
-          r.barcode || "",
-          r.customerName || "",
-          r.phone || "",
-          r.email || "",
-          r.notes || "",
-          r.reserveID || ""
-        ].join(" ")
-      );
-    }
-
     // ===== Totals =====
     function updateStats(list){
       const items = list.length;
@@ -406,8 +379,7 @@
     }
 
     function applyFilters() {
-      const kwRaw = document.getElementById("kw").value;       // 原始輸入
-      const kw = normalizeForSearch(kwRaw);                    // 正規化後再比對
+      const kw = document.getElementById("kw").value.trim().toLowerCase();
       const type = document.getElementById("typeFilter").value;
       const status = document.getElementById("statusFilter").value;
       const priority = document.getElementById("priorityFilter").value;
@@ -416,9 +388,16 @@
         if (type && r.type !== type) return false;
         if (status && r.status !== status) return false;
         if (priority && (r.priority || "normal") !== priority) return false;
-
         if (kw) {
-          const hay = recordToHay(r);
+          const hay = [
+            r.productTitle || "",
+            r.barcode || "",
+            r.customerName || "",
+            r.phone || "",
+            r.email || "",
+            r.notes || "",
+            r.reserveID || ""
+          ].join(" ").toLowerCase();
           if (!hay.includes(kw)) return false;
         }
         return true;
@@ -711,16 +690,18 @@
       });
     }
 
+    function normalize(s){ return String(s||"").toLowerCase(); }
     function filterProducts(term) {
       if (!term || term.length < 2) return [];
-      const t = normalizeForSearch(term);
+      const t = normalize(term);
       const res = [];
       for (const p of productsCache) {
-        const eng = normalizeForSearch(p.ProductNameEng);
-        const chi = normalizeForSearch(p.ProductNameChi);
-        const ttl = normalizeForSearch(p.Title);
-        const bc  = normalizeForSearch(p.Barcode);
-        if (eng.includes(t) || chi.includes(t) || ttl.includes(t) || bc.includes(t)) {
+        if (
+          normalize(p.ProductNameEng).includes(t) ||
+          normalize(p.ProductNameChi).includes(t) ||
+          normalize(p.Title).includes(t) ||
+          normalize(p.Barcode).includes(t)
+        ) {
           res.push(p);
           if (res.length >= 20) break;
         }
