@@ -26,7 +26,7 @@
     .small-muted { font-size:.85rem; color:#6c757d; }
     .sticky-actions { position:sticky; bottom:0; background:#fff; border-top:1px solid #eee; padding:.5rem; }
 
-    /* Product search dropdown */
+    /* Product search dropdown (for modal product picker) */
     .prod-search-wrap { position: relative; }
     .prod-results {
       position: absolute; z-index: 1080; left:0; right:0; top:100%;
@@ -42,21 +42,11 @@
     /* Mobile modal scroll fix */
     .modal .modal-body { -webkit-overflow-scrolling: touch; }
     @media (max-width: 576px){
-      .modal .modal-body{
-        max-height: calc(100vh - 160px);
-        overflow:auto;
-      }
+      .modal .modal-body{ max-height: calc(100vh - 160px); overflow:auto; }
     }
 
-    /* Hide any empty Bootstrap badges/pills */
     .badge:empty { display: none !important; }
-
-    /* Bigger QTY badge */
-    .qty-badge{
-      font-size: 1rem;
-      padding: .4em .65em;
-      line-height: 1;
-    }
+    .qty-badge{ font-size: 1rem; padding: .4em .65em; line-height: 1; }
   </style>
 </head>
 <body>
@@ -76,8 +66,17 @@
 
     <!-- Toolbar -->
     <div class="toolbar row g-2 mb-2">
+      <!-- 新增：只搜產品 -->
       <div class="col-12 col-md-3">
-        <input id="kw" type="text" class="form-control" placeholder="搜尋：產品名 / 條碼 / 客戶 / 電話 / Email / reserveID" oninput="applyFilters()">
+        <input id="kwProduct" type="text" class="form-control"
+               placeholder="只搜產品：產品名 / 條碼 (e.g. omega-3)"
+               oninput="applyFilters()">
+      </div>
+      <!-- 原有：關鍵字（不包含產品欄） -->
+      <div class="col-12 col-md-3">
+        <input id="kw" type="text" class="form-control"
+               placeholder="搜尋：客戶 / 電話 / Email / 備註 / reserveID / 來源 / 經手 / ETA"
+               oninput="applyFilters()">
       </div>
       <div class="col-6 col-md-2">
         <select id="typeFilter" class="form-select" onchange="applyFilters()">
@@ -103,13 +102,13 @@
           <option value="normal">Normal</option>
         </select>
       </div>
-      <div class="col-6 col-md-3 text-end">
+      <div class="col-6 col-md-12 col-lg-3 text-end">
         <button class="btn btn-outline-secondary me-1" onclick="refreshList()"><i class="bi bi-arrow-clockwise"></i></button>
         <button class="btn btn-outline-secondary" onclick="exportCSV()"><i class="bi bi-filetype-csv"></i> 匯出</button>
       </div>
     </div>
 
-    <!-- Totals bar (based on current filtered list) -->
+    <!-- Totals bar -->
     <div id="statsBar" class="d-flex justify-content-between align-items-center mb-2">
       <div class="small text-muted">顯示結果</div>
       <div>
@@ -180,7 +179,7 @@
                 </select>
               </div>
 
-              <!-- Product search -->
+              <!-- Product search (in modal) -->
               <div class="col-12">
                 <label class="form-label">產品搜尋</label>
                 <div class="prod-search-wrap">
@@ -286,7 +285,7 @@
     let selectedIds = new Set();
     let delTargetId = null;
 
-    // Product cache for search
+    // Product cache for search (modal)
     let productsCache = [];
     let prodActiveIndex = -1;
 
@@ -349,37 +348,43 @@
       return { imageUrl: d["Image URL"] || "", productUrl: d["Product URL"] || d.ProductURL || "", shortUrl };
     }
 
-    // ===== reserveID generator (short): R + base36(timestamp) + 2-char base36 random =====
+    // ===== reserveID generator =====
     function genReserveID() {
-      const t = Date.now().toString(36).toUpperCase();           // ~8 chars
-      const rnd = Math.floor(Math.random() * 1296)               // 0..1295
-                    .toString(36).toUpperCase().padStart(2, '0'); // 2 chars
+      const t = Date.now().toString(36).toUpperCase();
+      const rnd = Math.floor(Math.random() * 1296).toString(36).toUpperCase().padStart(2, '0');
       return `R${t}${rnd}`;
     }
 
-    // ===== Normalization for searching =====
+    // ===== Normalization =====
     function normalizeForSearch(s){
       return String(s||"")
-        .replace(/[\u200B-\u200D\uFEFF]/g, "")                         // zero-width & BOM
-        .replace(/[\uFF01-\uFF5E]/g, ch =>                              // full-width -> half-width
-          String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)
-        )
-        .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")              // strip accents
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .replace(/[\uFF01-\uFF5E]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
-        .replace(/[–—−]/g, "-")                                         // normalize dashes
+        .replace(/[–—−]/g, "-")
         .replace(/\s+/g, " ")
         .trim();
     }
-    function recordToHay(r){
+
+    // 專供「只搜產品」的 hay（產品名＋條碼）
+    function recordToHayProduct(r){
+      return normalizeForSearch(
+        [ r.productTitle || "", r.barcode || "" ].join(" ")
+      );
+    }
+    // 專供「一般關鍵字」的 hay（不包含產品名/條碼）
+    function recordToHayGeneral(r){
       return normalizeForSearch(
         [
-          r.productTitle || "",
-          r.barcode || "",
           r.customerName || "",
           r.phone || "",
           r.email || "",
           r.notes || "",
-          r.reserveID || ""
+          r.reserveID || "",
+          r.source || "",
+          r.staff || "",
+          r.etaDate || ""
         ].join(" ")
       );
     }
@@ -406,8 +411,8 @@
     }
 
     function applyFilters() {
-      const kwRaw = document.getElementById("kw").value;       // 原始輸入
-      const kw = normalizeForSearch(kwRaw);                    // 正規化後再比對
+      const kwProd = normalizeForSearch(document.getElementById("kwProduct").value || "");
+      const kwGen  = normalizeForSearch(document.getElementById("kw").value || "");
       const type = document.getElementById("typeFilter").value;
       const status = document.getElementById("statusFilter").value;
       const priority = document.getElementById("priorityFilter").value;
@@ -417,9 +422,15 @@
         if (status && r.status !== status) return false;
         if (priority && (r.priority || "normal") !== priority) return false;
 
-        if (kw) {
-          const hay = recordToHay(r);
-          if (!hay.includes(kw)) return false;
+        // 先檢查「只搜產品」
+        if (kwProd) {
+          const hayP = recordToHayProduct(r);
+          if (!hayP.includes(kwProd)) return false;
+        }
+        // 再檢查「一般關鍵字」（不含產品）
+        if (kwGen) {
+          const hayG = recordToHayGeneral(r);
+          if (!hayG.includes(kwGen)) return false;
         }
         return true;
       });
@@ -493,26 +504,15 @@
       });
     }
 
-    function toggleSelect(id, on) {
-      if (on) selectedIds.add(id); else selectedIds.delete(id);
-    }
+    function toggleSelect(id, on) { if (on) selectedIds.add(id); else selectedIds.delete(id); }
 
     async function lazyProductBind(r) {
       try {
         const prod = await lookupProductByBarcode(r.barcode);
         const th = document.getElementById(`th_${r.id}`);
         const pv = document.getElementById(`pv_${r.id}`);
-        const cp = document.getElementById(`cp_${r.id}`);
-
         if (th && prod?.imageUrl) th.src = prod.imageUrl;
-        if (pv && prod?.productUrl) {
-          pv.href = prod.productUrl;
-          pv.classList.remove("disabled");
-        }
-        if (cp && prod?.shortUrl) {
-          cp.dataset.url = prod.shortUrl;
-          cp.classList.remove("disabled");
-        }
+        if (pv && prod?.productUrl) { pv.href = prod.productUrl; pv.classList.remove("disabled"); }
         if (th && !th.src) th.src = "/images/truly_favicon_o1.png";
       } catch {
         const th = document.getElementById(`th_${r.id}`);
@@ -534,9 +534,7 @@
         btn.innerHTML = '<i class="bi bi-clipboard-check"></i> 已複製';
         btn.disabled = true;
         setTimeout(()=>{ btn.innerHTML = old; btn.disabled = false; }, 1200);
-      } catch(e) {
-        alert("無法複製：" + e);
-      }
+      } catch(e) { alert("無法複製：" + e); }
     }
 
     // ===== Create / Edit =====
@@ -586,10 +584,7 @@
 
     function validateForm() {
       const form = document.getElementById("editForm");
-      if (!form.checkValidity()) {
-        form.classList.add('was-validated');
-        return false;
-      }
+      if (!form.checkValidity()) { form.classList.add('was-validated'); return false; }
       return true;
     }
 
@@ -616,7 +611,6 @@
       };
 
       if (!id) {
-        // New record → generate short reserveID and ensure uniqueness
         let reserveID = genReserveID();
         for (let i = 0; i < 5; i++) {
           const dup = await db.collection(COL).where("reserveID","==",reserveID).limit(1).get();
@@ -627,7 +621,6 @@
         payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         await db.collection(COL).add(payload);
       } else {
-        // Existing record → do not overwrite reserveID
         await db.collection(COL).doc(id).set(payload, { merge:true });
       }
 
@@ -670,7 +663,7 @@
       refreshList();
     }
 
-    // ===== Export CSV (UTF-8 BOM) =====
+    // ===== Export CSV =====
     function exportCSV() {
       const header = ["id","reserveID","type","status","priority","source","productTitle","barcode","qty","customerName","phone","email","etaDate","staff","notes","createdAt","updatedAt"];
       const rows = [header];
@@ -694,7 +687,7 @@
       URL.revokeObjectURL(a.href);
     }
 
-    // ===== Product Search =====
+    // ===== Product Search (modal picker) =====
     async function preloadProducts() {
       const snap = await db.collection(PRODUCT_COL).get();
       productsCache = snap.docs.map(d => {
@@ -712,15 +705,15 @@
     }
 
     function filterProducts(term) {
+      term = normalizeForSearch(term);
       if (!term || term.length < 2) return [];
-      const t = normalizeForSearch(term);
       const res = [];
       for (const p of productsCache) {
         const eng = normalizeForSearch(p.ProductNameEng);
         const chi = normalizeForSearch(p.ProductNameChi);
         const ttl = normalizeForSearch(p.Title);
         const bc  = normalizeForSearch(p.Barcode);
-        if (eng.includes(t) || chi.includes(t) || ttl.includes(t) || bc.includes(t)) {
+        if (eng.includes(term) || chi.includes(term) || ttl.includes(term) || bc.includes(term)) {
           res.push(p);
           if (res.length >= 20) break;
         }
