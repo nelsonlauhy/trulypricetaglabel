@@ -4,17 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Truly Market Back Office Tool</title>
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <!-- ✅ Load firebase init helper (NO secrets in repo) -->
+  <script src="/js/firebaseConfig.js"></script>
+
   <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
+
   <style>
-    #searchWrapper {
-      position: relative;
-    }
-    #searchInput {
-      padding-right: 2.5rem;
-    }
+    #searchWrapper { position: relative; }
+    #searchInput { padding-right: 2.5rem; }
     #clearSearchBtn {
       position: absolute;
       right: 10px;
@@ -25,18 +28,9 @@
       font-size: 1.2rem;
       display: none;
     }
-    #clearSearchBtn:hover {
-      color: #555;
-    }
-    img.thumb {
-      width: auto;
-      height: 30px;
-      cursor: pointer;
-    }
-    #modalImage {
-      width: 100%;
-      height: auto;
-    }
+    #clearSearchBtn:hover { color: #555; }
+    img.thumb { width: auto; height: 30px; cursor: pointer; }
+    #modalImage { width: 100%; height: auto; }
     .tag {
       display: inline-flex;
       align-items: center;
@@ -47,41 +41,30 @@
       margin: 0.25rem;
       font-size: 0.75rem;
     }
-    .tag .btn-close {
-      font-size: 0.7rem;
-      margin-left: 0.5rem;
-    }
-
-    .table td,
-    .table th {
+    .tag .btn-close { font-size: 0.7rem; margin-left: 0.5rem; }
+    .table td, .table th {
       font-size: 0.75rem;
       padding-top: 0.3rem;
       padding-bottom: 0.3rem;
     }
-
-    td[contenteditable="true"] {
-      background-color: #fff8dc;
-      outline: none;
-    }
-
-    .d-none {
-      display: none !important;
-    }
+    td[contenteditable="true"] { background-color: #fff8dc; outline: none; }
+    .d-none { display: none !important; }
   </style>
+
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
   <script src="https://unpkg.com/@pdf-lib/fontkit/dist/fontkit.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
+
 <body class="bg-light">
   <!-- Navbar placeholder -->
   <div id="navbarContainer"></div>
   <script>
     fetch("/navbar.html")
       .then(res => res.text())
-      .then(html => {
-        document.getElementById("navbarContainer").innerHTML = html;
-      });
+      .then(html => { document.getElementById("navbarContainer").innerHTML = html; });
   </script>
+
   <div class="container-fluid">
     <br>
     <div id="searchWrapper" class="mb-3">
@@ -134,18 +117,8 @@
   </div>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
-      authDomain: "trulymarket-c25b6.firebaseapp.com",
-      projectId: "trulymarket-c25b6",
-      storageBucket: "trulymarket-c25b6.firebasestorage.app",
-      messagingSenderId: "810610286008",
-      appId: "1:810610286008:web:847f3bc2c441e103a1434d",
-      measurementId: "G-KWN9XQD8K5"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    // ✅ Firestore db (init after Firebase ready)
+    let db;
 
     let allData = [];
     let filteredData = [];
@@ -276,7 +249,6 @@
       const ProductNameChi = row.querySelector('[data-field="ProductNameChi"]')?.textContent.trim();
       const ProductDesc = row.cells[7]?.textContent.trim();
 
-      // ✅ Update Firestore
       db.collection("pricetaglabel")
         .where("Variant ID", "==", variantId)
         .get()
@@ -288,26 +260,17 @@
           }
 
           snapshot.forEach(doc => {
-            console.log("✅ Updating doc:", doc.id, {
-              ProductNameEng,
-              ProductNameChi,
-              ProductDesc
-            });
-
             db.collection("pricetaglabel").doc(doc.id).update({
               ProductNameEng,
               ProductNameChi,
               ProductDesc
-            })
-            .then(() => console.log("✅ Update successful:", doc.id))
-            .catch(error => console.error("❌ Update failed:", error));
+            });
           });
         })
         .catch(error => {
           console.error("❌ Firestore query failed:", error);
         });
 
-      // ✅ Create visual tag
       const tag = document.createElement("span");
       tag.className = "tag";
       tag.dataset.variantId = variantId;
@@ -320,8 +283,6 @@
 
       toggleSubmitButton();
     }
-
-
 
     async function loadData() {
       const snapshot = await db.collection("pricetaglabel").get();
@@ -342,7 +303,7 @@
 
     async function translateToChinese(button) {
       const row = button.closest("tr");
-      const sourceText = row.cells[5]?.textContent.trim(); // Price Tag Line 1
+      const sourceText = row.cells[5]?.textContent.trim();
 
       if (!sourceText) {
         alert("⚠️ Price Tag Line 1 is empty.");
@@ -360,10 +321,7 @@
         });
 
         const data = await res.json();
-        console.log("Response from translate function:", data);
-
         const translated = data?.data?.translations?.[0]?.translatedText;
-        console.log("Extracted translation:", translated);
 
         if (translated) {
           const editableCell = row.querySelector('[data-field="ProductNameChi"]');
@@ -414,7 +372,6 @@
         });
       }
 
-      console.log("📦 Label Data Ready:", labelData);
       generateLabelPDF(labelData);
     }
 
@@ -441,9 +398,8 @@
           const testLine = currentLine ? `${currentLine} ${word}` : word;
           const width = font.widthOfTextAtSize(testLine, size);
 
-          if (width <= maxWidth) {
-            currentLine = testLine;
-          } else {
+          if (width <= maxWidth) currentLine = testLine;
+          else {
             lines.push(currentLine);
             currentLine = word;
             if (lines.length === maxLines - 1) break;
@@ -472,8 +428,7 @@
         const y = pageHeight - (row * labelHeight) - marginY - 70;
 
         page.drawRectangle({
-          x: x,
-          y: y,
+          x, y,
           width: labelWidth,
           height: labelHeight,
           borderColor: rgb(0.8, 0.8, 0.8),
@@ -497,28 +452,20 @@
         let textY = y + 15;
 
         page.drawText(item.ProductDesc || "", {
-          x: textX,
-          y: textY,
-          size: 9,
-          font: customFont,
-          color: rgb(0.2, 0.2, 0.2)
+          x: textX, y: textY, size: 9, font: customFont, color: rgb(0.2, 0.2, 0.2)
         });
 
         const priceText = "$" + (item.Price || "");
         const priceWidth = arialFont.widthOfTextAtSize(priceText + " CAD", 10);
         page.drawText(priceText + " CAD", {
-          x: textX + maxWidth - priceWidth,
-          y: textY,
-          size: 10,
-          font: arialFont,
-          color: rgb(0, 0, 0)
+          x: textX + maxWidth - priceWidth, y: textY, size: 10, font: arialFont, color: rgb(0, 0, 0)
         });
 
         textY += 18;
 
         page.drawLine({
           start: { x: textX - 1, y: textY - 4 },
-          end: { x: textX + maxWidth + 2, y: textY - 4},
+          end: { x: textX + maxWidth + 2, y: textY - 4 },
           thickness: 0.5,
           color: rgb(0.6, 0.6, 0.6)
         });
@@ -590,7 +537,16 @@
       if (iframe) iframe.contentWindow.print();
     }
 
-    loadData();
+    // ✅ init: Firebase first, then loadData
+    (async function init() {
+      try {
+        db = await window.initFirebase();
+        await loadData();
+      } catch (e) {
+        console.error(e);
+        alert("Firebase 初始化失敗：\n" + (e?.message || e));
+      }
+    })();
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

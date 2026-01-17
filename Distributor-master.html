@@ -13,6 +13,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
+  <!-- ✅ Load firebase init helper (NO secrets inside repo) -->
+  <script src="/js/firebaseConfig.js"></script>
+
   <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
 
   <style>
@@ -135,18 +138,8 @@
   </div>
 
   <script>
-    // ===== Firebase Init（沿用你現有設定） =====
-    const firebaseConfig = {
-      apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
-      authDomain: "trulymarket-c25b6.firebaseapp.com",
-      projectId: "trulymarket-c25b6",
-      storageBucket: "trulymarket-c25b6.firebasestorage.app",
-      messagingSenderId: "810610286008",
-      appId: "1:810610286008:web:847f3bc2c441e103a1434d",
-      measurementId: "G-KWN9XQD8K5"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    // ===== Firebase Init (NO secrets here) =====
+    let db; // set by init()
 
     const COLL = 'distributors';
     let allRows = [], filtered = [];
@@ -164,7 +157,6 @@
     // 載入列表
     async function loadData(){
       const snap = await db.collection(COLL).orderBy('nameLower').get().catch(async e => {
-        // 如果沒有索引欄位，退回用 name 排序（或不排序）
         console.warn('nameLower orderBy 失敗，改用 name：', e);
         return await db.collection(COLL).orderBy('name').get();
       });
@@ -221,7 +213,6 @@
       });
     }
 
-    // 新增/編輯
     function openNewDistributor(){
       resetForm();
       document.getElementById('modalTitle').innerText = '新增分銷商';
@@ -252,7 +243,7 @@
     }
 
     function validateEmail(v){
-      if (!v) return true; // 可留空
+      if (!v) return true;
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
     }
 
@@ -313,8 +304,16 @@
 
     function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 
-    // 初始化
-    loadData();
+    // ✅ 初始化：先完成 Firebase init，再 load data
+    (async function init() {
+      try {
+        db = await window.initFirebase();
+        await loadData();
+      } catch (e) {
+        console.error(e);
+        alert("Firebase 初始化失敗：\n" + (e?.message || e));
+      }
+    })();
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

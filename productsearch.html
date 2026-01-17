@@ -13,6 +13,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
+  <!-- ✅ Load firebase init helper (NO secrets in repo) -->
+  <script src="/js/firebaseConfig.js"></script>
+
   <!-- ZXing Barcode/QR Scanner -->
   <script src="https://unpkg.com/@zxing/library@latest"></script>
 
@@ -39,6 +42,7 @@
     .btn-mini-group { display: inline-flex; gap: .5rem; flex-wrap: wrap; justify-content: center; }
   </style>
 </head>
+
 <body class="bg-light">
 
   <!-- Navbar -->
@@ -77,18 +81,8 @@
   </div>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
-      authDomain: "trulymarket-c25b6.firebaseapp.com",
-      projectId: "trulymarket-c25b6",
-      storageBucket: "trulymarket-c25b6.firebasestorage.app",
-      messagingSenderId: "810610286008",
-      appId: "1:810610286008:web:847f3bc2c441e103a1434d",
-      measurementId: "G-KWN9XQD8K5"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    // ✅ Firestore db (init after Firebase ready)
+    let db;
 
     let allData = [];
     let codeReader;
@@ -113,20 +107,17 @@
         const m = u.pathname.match(/\/products\/([^\/?#]+)/i);
         return m ? decodeURIComponent(m[1]) : "";
       } catch {
-        // Fallback simple match if it's not a fully-qualified URL
         const m = (url || "").match(/\/products\/([^\/?#]+)/i);
         return m ? decodeURIComponent(m[1]) : "";
       }
     }
 
     function resolveHandle(doc) {
-      // Prefer explicit Handle field, support both "Handle" and "handle"
       const direct =
         (typeof doc.Handle === "string" && doc.Handle.trim()) ||
         (typeof doc.handle === "string" && doc.handle.trim());
       if (direct) return direct.trim();
 
-      // Fallback: try to parse from Product URL
       const fromUrl = extractHandleFromUrl(doc["Product URL"] || doc.ProductURL || "");
       return fromUrl || "";
     }
@@ -134,11 +125,8 @@
     async function copyShortLink(evt) {
       const btn = evt.currentTarget;
       const url = btn?.dataset?.url;
-      if (!url) {
-        alert("Short link unavailable.");
-        return;
-      }
-      // Clipboard API with fallback for older iOS/Safari
+      if (!url) { alert("Short link unavailable."); return; }
+
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(url);
@@ -150,11 +138,10 @@
           ta.style.left = "-9999px";
           document.body.appendChild(ta);
           ta.select();
-          ta.setSelectionRange(0, ta.value.length); // iOS
+          ta.setSelectionRange(0, ta.value.length);
           document.execCommand("copy");
           document.body.removeChild(ta);
         }
-        // Visual feedback
         const original = btn.innerHTML;
         btn.innerHTML = '<i class="bi bi-clipboard-check"></i> Copied!';
         btn.disabled = true;
@@ -187,7 +174,6 @@
 
         const handle = resolveHandle(doc);
         const shortUrl = handle ? (SHORT_LINK_PREFIX + handle.trim()) : "";
-
 
         const viewBtn = doc["Product URL"]
           ? `<a href="${doc["Product URL"]}" target="_blank" class="btn btn-sm btn-outline-primary">
@@ -252,7 +238,6 @@
       codeReader = new ZXing.BrowserMultiFormatReader();
       videoDevices = await codeReader.listVideoInputDevices();
 
-      // Default to back camera
       if (selectedDeviceId === null) {
         const backCam = videoDevices.find(d => /back|rear|environment/i.test(d.label));
         selectedDeviceId = backCam?.deviceId || videoDevices[0]?.deviceId;
@@ -282,9 +267,7 @@
       currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
       selectedDeviceId = videoDevices[currentDeviceIndex].deviceId;
 
-      if (codeReader) {
-        await codeReader.reset();
-      }
+      if (codeReader) await codeReader.reset();
       setTimeout(() => { startScan(); }, 300);
     }
 
@@ -306,7 +289,16 @@
         });
       });
 
-    loadData();
+    // ✅ init: Firebase first, then loadData
+    (async function init() {
+      try {
+        db = await window.initFirebase();
+        await loadData();
+      } catch (e) {
+        console.error(e);
+        alert("Firebase 初始化失敗：\n" + (e?.message || e));
+      }
+    })();
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
