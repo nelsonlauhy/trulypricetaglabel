@@ -1,3 +1,6 @@
+// ===== Firebase DB (set in init) =====
+let db;
+
 // ===== Collections =====
 const PICKUP_COLL = 'distributor_pickups';
 const DIST_COLL = 'distributors';
@@ -195,10 +198,16 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('btnSwitchCam').addEventListener('click', switchCamera);
   document.getElementById('btnScanClose').addEventListener('click', stopScan);
 
-  init();
+  init().catch(err => {
+    console.error("Init failed:", err);
+    alert("初始化失敗：" + (err?.message || err));
+  });
 });
 
 async function init(){
+    // ✅ must init firebase first
+  db = await window.initFirebase();
+
   await Promise.all([loadDistributors(), preloadProducts()]);
   await loadData();
 
