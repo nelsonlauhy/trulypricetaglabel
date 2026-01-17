@@ -13,6 +13,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
+  <!-- ✅ Your config loader (no secrets in repo) -->
+  <script src="/js/firebaseConfig.js"></script>
+
   <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
 
   <style>
@@ -26,7 +29,6 @@
     .small-muted { font-size:.85rem; color:#6c757d; }
     .sticky-actions { position:sticky; bottom:0; background:#fff; border-top:1px solid #eee; padding:.5rem; }
 
-    /* Product search dropdown (for modal product picker) */
     .prod-search-wrap { position: relative; }
     .prod-results {
       position: absolute; z-index: 1080; left:0; right:0; top:100%;
@@ -39,7 +41,6 @@
     .prod-badge { font-size:.75rem; }
     .form-text-compact { margin-top:.25rem; font-size:.8rem; color:#6c757d; }
 
-    /* (Old mobile-specific) modal body scroll — will be overridden by the rules below */
     .modal .modal-body { -webkit-overflow-scrolling: touch; }
     @media (max-width: 576px){
       .modal .modal-body{ max-height: calc(100vh - 160px); overflow:auto; }
@@ -48,43 +49,39 @@
     .badge:empty { display: none !important; }
     .qty-badge{ font-size: 1rem; padding: .4em .65em; line-height: 1; }
 
-    /* === Modal scroll overhaul: header/footer fixed, body scrolls === */
     .modal .modal-content{
-      max-height: 92vh;              /* keep modal within viewport */
+      max-height: 92vh;
       display: flex;
       flex-direction: column;
     }
-    .modal .modal-header{
-      flex-shrink: 0;
-    }
+    .modal .modal-header{ flex-shrink: 0; }
     .modal .modal-body{
-      overflow: auto;                 /* only body scrolls */
-      max-height: calc(92vh - 3.5rem - 3.5rem); /* subtract header+footer (~3.5rem each) */
+      overflow: auto;
+      max-height: calc(92vh - 3.5rem - 3.5rem);
       -webkit-overflow-scrolling: touch;
-      padding-bottom: 5rem;           /* ensure last inputs clear the sticky footer */
+      padding-bottom: 5rem;
     }
     .modal .modal-footer{
       flex-shrink: 0;
-      position: sticky;               /* keep footer visible */
+      position: sticky;
       bottom: 0;
       background: #fff;
       z-index: 5;
       border-top: 1px solid #eee;
     }
 
-    /* Short screens: allow a bit more height */
     @media (max-height: 600px){
       .modal .modal-content{ max-height: 96vh; }
       .modal .modal-body{ max-height: calc(96vh - 3.5rem - 3.5rem); }
     }
 
-    /* Small widths (fullscreen modal): same behaviour */
     @media (max-width: 768px){
       .modal .modal-content{ max-height: 96vh; }
       .modal .modal-body{ max-height: calc(96vh - 3.5rem - 3.5rem); }
     }
   </style>
 </head>
+
 <body>
 
   <!-- Navbar -->
@@ -102,13 +99,11 @@
 
     <!-- Toolbar -->
     <div class="toolbar row g-2 mb-2">
-      <!-- 新增：只搜產品 -->
       <div class="col-12 col-md-3">
         <input id="kwProduct" type="text" class="form-control"
                placeholder="只搜產品：產品名 / 條碼 (e.g. omega-3)"
                oninput="applyFilters()">
       </div>
-      <!-- 原有：關鍵字（不包含產品欄） -->
       <div class="col-12 col-md-3">
         <input id="kw" type="text" class="form-control"
                placeholder="搜尋：客戶 / 電話 / Email / 備註 / reserveID / 來源 / 經手 / ETA"
@@ -168,7 +163,6 @@
 
   <!-- Create/Edit Modal -->
   <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-    <!-- removed modal-dialog-scrollable; keep fullscreen below md -->
     <div class="modal-dialog modal-lg modal-fullscreen-md-down">
       <div class="modal-content">
         <form id="editForm" onsubmit="saveRecord(event)" novalidate>
@@ -216,7 +210,6 @@
                 </select>
               </div>
 
-              <!-- Product search (in modal) -->
               <div class="col-12">
                 <label class="form-label">產品搜尋</label>
                 <div class="prod-search-wrap">
@@ -300,33 +293,22 @@
   </div>
 
   <script>
-    // ===== Firebase Config =====
-    const firebaseConfig = {
-      apiKey: "AIzaSyCy3fmE6jjoju1u5Zv6PQbSuHq6718zNcE",
-      authDomain: "trulymarket-c25b6.firebaseapp.com",
-      projectId: "trulymarket-c25b6",
-      storageBucket: "trulymarket-c25b6.firebasestorage.app",
-      messagingSenderId: "810610286008",
-      appId: "1:810610286008:web:847f3bc2c441e103a1434d",
-      measurementId: "G-KWN9XQD8K5"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
     // ===== Globals =====
     const COL = "cust_reservations";
     const PRODUCT_COL = "pricetaglabel";
     const SHORT_LINK_PREFIX = "https://trulymarket.ca/products/";
+
+    let db; // ✅ Firestore db will be set after initFirebase()
+
     let rawList = [];
     let viewList = [];
     let selectedIds = new Set();
     let delTargetId = null;
 
-    // Product cache for search (modal)
     let productsCache = [];
     let prodActiveIndex = -1;
 
-    // ✅ NEW: for scroll back to edited record
+    // ✅ scroll back to edited record
     let lastEditedId = null;
     let shouldScrollToEdited = false;
 
@@ -361,7 +343,6 @@
       return fromUrl || "";
     }
 
-    // type & status & qty badges
     function typeBadge(t) {
       if (!t) return "";
       const isRestock = String(t).toLowerCase() === "restock";
@@ -389,14 +370,12 @@
       return { imageUrl: d["Image URL"] || "", productUrl: d["Product URL"] || d.ProductURL || "", shortUrl };
     }
 
-    // ===== reserveID generator =====
     function genReserveID() {
       const t = Date.now().toString(36).toUpperCase();
       const rnd = Math.floor(Math.random() * 1296).toString(36).toUpperCase().padStart(2, '0');
       return `R${t}${rnd}`;
     }
 
-    // ===== Normalization =====
     function normalizeForSearch(s){
       return String(s||"")
         .replace(/[\u200B-\u200D\uFEFF]/g, "")
@@ -408,29 +387,22 @@
         .trim();
     }
 
-    // 專供「只搜產品」的 hay（產品名＋條碼）
     function recordToHayProduct(r){
-      return normalizeForSearch(
-        [ r.productTitle || "", r.barcode || "" ].join(" ")
-      );
+      return normalizeForSearch([ r.productTitle || "", r.barcode || "" ].join(" "));
     }
-    // 專供「一般關鍵字」的 hay（不包含產品名/條碼）
     function recordToHayGeneral(r){
-      return normalizeForSearch(
-        [
-          r.customerName || "",
-          r.phone || "",
-          r.email || "",
-          r.notes || "",
-          r.reserveID || "",
-          r.source || "",
-          r.staff || "",
-          r.etaDate || ""
-        ].join(" ")
-      );
+      return normalizeForSearch([
+        r.customerName || "",
+        r.phone || "",
+        r.email || "",
+        r.notes || "",
+        r.reserveID || "",
+        r.source || "",
+        r.staff || "",
+        r.etaDate || ""
+      ].join(" "));
     }
 
-    // ===== Totals =====
     function updateStats(list){
       const items = list.length;
       let qty = 0;
@@ -463,12 +435,10 @@
         if (status && r.status !== status) return false;
         if (priority && (r.priority || "normal") !== priority) return false;
 
-        // 先檢查「只搜產品」
         if (kwProd) {
           const hayP = recordToHayProduct(r);
           if (!hayP.includes(kwProd)) return false;
         }
-        // 再檢查「一般關鍵字」（不含產品）
         if (kwGen) {
           const hayG = recordToHayGeneral(r);
           if (!hayG.includes(kwGen)) return false;
@@ -495,7 +465,7 @@
       list.forEach(r => {
         const li = document.createElement("div");
         li.className = "list-group-item";
-        li.id = `row_${r.id}`; // ✅ NEW: anchor for scroll-back
+        li.id = `row_${r.id}`; // ✅ anchor
         li.innerHTML = `
           <div class="d-flex align-items-start gap-3">
             <div class="form-check mt-1">
@@ -544,6 +514,19 @@
         container.appendChild(li);
         lazyProductBind(r);
       });
+
+      // ✅ scroll after render
+      if (shouldScrollToEdited && lastEditedId) {
+        requestAnimationFrame(() => {
+          const target = document.getElementById(`row_${lastEditedId}`);
+          if (target) {
+            target.scrollIntoView({ behavior: "auto", block: "center" });
+            target.classList.add("border", "border-2", "border-primary");
+            setTimeout(() => target.classList.remove("border", "border-2", "border-primary"), 900);
+          }
+          shouldScrollToEdited = false;
+        });
+      }
     }
 
     function toggleSelect(id, on) { if (on) selectedIds.add(id); else selectedIds.delete(id); }
@@ -564,19 +547,6 @@
 
     function escapeHtml(s) {
       return String(s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    }
-
-    async function copyShortLink(evt, id) {
-      const btn = evt.currentTarget;
-      const url = btn?.dataset?.url;
-      if (!url) { alert("短鏈尚未可用（未匹配到商品）。"); return; }
-      try {
-        await navigator.clipboard.writeText(url);
-        const old = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-clipboard-check"></i> 已複製';
-        btn.disabled = true;
-        setTimeout(()=>{ btn.innerHTML = old; btn.disabled = false; }, 1200);
-      } catch(e) { alert("無法複製：" + e); }
     }
 
     // ===== Create / Edit =====
@@ -630,7 +600,6 @@
       return true;
     }
 
-    // ✅ UPDATED: saveRecord scrolls back to the edited record after refresh
     async function saveRecord(e) {
       e.preventDefault();
       if (!validateForm()) return;
@@ -667,62 +636,30 @@
         payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
 
         const docRef = await db.collection(COL).add(payload);
-        editedDocId = docRef.id; // ✅ new id
+        editedDocId = docRef.id;
       } else {
         await db.collection(COL).doc(id).set(payload, { merge:true });
       }
 
-      // ✅ set scroll target
       lastEditedId = editedDocId;
       shouldScrollToEdited = true;
 
-      // ✅ close modal first
       const modalEl = document.getElementById("editModal");
       bootstrap.Modal.getInstance(modalEl).hide();
 
-      // ✅ refresh list
       await refreshList();
-
-      // ✅ scroll to edited row
-      if (shouldScrollToEdited && lastEditedId) {
-        requestAnimationFrame(() => {
-          const target = document.getElementById(`row_${lastEditedId}`);
-          if (target) {
-            target.scrollIntoView({ behavior: "auto", block: "center" });
-
-            // optional highlight
-            target.classList.add("border", "border-2", "border-primary");
-            setTimeout(() => target.classList.remove("border", "border-2", "border-primary"), 900);
-          }
-          shouldScrollToEdited = false;
-        });
-      }
     }
 
-    // ===== Quick status / Delete =====
     async function quickStatus(id, status) {
       await db.collection(COL).doc(id).set({
         status,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge:true });
 
-      // ✅ optional: after quick status, also scroll back to that row
       lastEditedId = id;
       shouldScrollToEdited = true;
 
       await refreshList();
-
-      if (shouldScrollToEdited && lastEditedId) {
-        requestAnimationFrame(() => {
-          const target = document.getElementById(`row_${lastEditedId}`);
-          if (target) {
-            target.scrollIntoView({ behavior: "auto", block: "center" });
-            target.classList.add("border", "border-2", "border-primary");
-            setTimeout(() => target.classList.remove("border", "border-2", "border-primary"), 900);
-          }
-          shouldScrollToEdited = false;
-        });
-      }
     }
 
     function confirmDelete(id) {
@@ -738,7 +675,6 @@
       refreshList();
     });
 
-    // ===== Bulk ops =====
     async function bulkChangeStatus(status) {
       if (!selectedIds.size) { alert("請先勾選項目。"); return; }
       const batch = db.batch();
@@ -751,7 +687,6 @@
       refreshList();
     }
 
-    // ===== Export CSV =====
     function exportCSV() {
       const header = ["id","reserveID","type","status","priority","source","productTitle","barcode","qty","customerName","phone","email","etaDate","staff","notes","createdAt","updatedAt"];
       const rows = [header];
@@ -833,12 +768,14 @@
         });
       });
     }
+
     function hideProdResults() {
       const box = document.getElementById("prodResults");
       box.style.display = "none";
       box.innerHTML = "";
       prodActiveIndex = -1;
     }
+
     function chooseProduct(p) {
       if (!p) return;
       document.getElementById("productTitle").value = p.ProductNameEng || p.Title || "";
@@ -848,17 +785,19 @@
           document.getElementById("notes").value = (curNotes? (curNotes + " ") : "") + p.ProductNameChi;
         }
       }
-      document.getElementById("barcode").value = p.Barcode || ""
+      document.getElementById("barcode").value = p.Barcode || "";
       document.getElementById("prodSearch").value = "";
       hideProdResults();
       setTimeout(()=> document.getElementById("qty").focus(), 50);
     }
+
     function debounce(fn, wait=150){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); }; }
     const onProdSearchInput = debounce(()=>{
       const term = document.getElementById("prodSearch").value.trim();
       const list = filterProducts(term);
       showProdResults(list);
     }, 200);
+
     function onProdSearchKeydown(e) {
       const box = document.getElementById("prodResults");
       if (box.style.display !== "block") return;
@@ -881,13 +820,20 @@
     }
     function prodSearchBlur(){ setTimeout(()=> hideProdResults(), 150); }
 
-    // ===== Init =====
+    // ✅ Init: Firebase first
     async function init() {
-      await Promise.all([preloadProducts(), refreshList()]);
-      const ps = document.getElementById("prodSearch");
-      ps.addEventListener("input", onProdSearchInput);
-      ps.addEventListener("keydown", onProdSearchKeydown);
-      ps.addEventListener("blur", prodSearchBlur);
+      try {
+        db = await window.initFirebase(); // from js/firebaseConfig.js
+        await Promise.all([preloadProducts(), refreshList()]);
+
+        const ps = document.getElementById("prodSearch");
+        ps.addEventListener("input", onProdSearchInput);
+        ps.addEventListener("keydown", onProdSearchKeydown);
+        ps.addEventListener("blur", prodSearchBlur);
+      } catch (err) {
+        console.error(err);
+        alert("初始化失敗：\n" + (err?.message || err));
+      }
     }
     init();
   </script>
