@@ -326,10 +326,6 @@
     let productsCache = [];
     let prodActiveIndex = -1;
 
-    // ✅ NEW: for scroll back to edited record
-    let lastEditedId = null;
-    let shouldScrollToEdited = false;
-
     // navbar 高亮
     fetch("/navbar.html")
       .then(r => r.text())
@@ -495,7 +491,6 @@
       list.forEach(r => {
         const li = document.createElement("div");
         li.className = "list-group-item";
-        li.id = `row_${r.id}`; // ✅ NEW: anchor for scroll-back
         li.innerHTML = `
           <div class="d-flex align-items-start gap-3">
             <div class="form-check mt-1">
@@ -630,13 +625,11 @@
       return true;
     }
 
-    // ✅ UPDATED: saveRecord scrolls back to the edited record after refresh
     async function saveRecord(e) {
       e.preventDefault();
       if (!validateForm()) return;
 
       const id = document.getElementById("docId").value.trim();
-
       const payload = {
         type: document.getElementById("type").value,
         status: document.getElementById("status").value,
@@ -654,8 +647,6 @@
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      let editedDocId = id;
-
       if (!id) {
         let reserveID = genReserveID();
         for (let i = 0; i < 5; i++) {
@@ -665,38 +656,13 @@
         }
         payload.reserveID = reserveID;
         payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-
-        const docRef = await db.collection(COL).add(payload);
-        editedDocId = docRef.id; // ✅ new id
+        await db.collection(COL).add(payload);
       } else {
         await db.collection(COL).doc(id).set(payload, { merge:true });
       }
 
-      // ✅ set scroll target
-      lastEditedId = editedDocId;
-      shouldScrollToEdited = true;
-
-      // ✅ close modal first
-      const modalEl = document.getElementById("editModal");
-      bootstrap.Modal.getInstance(modalEl).hide();
-
-      // ✅ refresh list
-      await refreshList();
-
-      // ✅ scroll to edited row
-      if (shouldScrollToEdited && lastEditedId) {
-        requestAnimationFrame(() => {
-          const target = document.getElementById(`row_${lastEditedId}`);
-          if (target) {
-            target.scrollIntoView({ behavior: "auto", block: "center" });
-
-            // optional highlight
-            target.classList.add("border", "border-2", "border-primary");
-            setTimeout(() => target.classList.remove("border", "border-2", "border-primary"), 900);
-          }
-          shouldScrollToEdited = false;
-        });
-      }
+      bootstrap.Modal.getInstance(document.getElementById("editModal")).hide();
+      refreshList();
     }
 
     // ===== Quick status / Delete =====
@@ -705,24 +671,7 @@
         status,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge:true });
-
-      // ✅ optional: after quick status, also scroll back to that row
-      lastEditedId = id;
-      shouldScrollToEdited = true;
-
-      await refreshList();
-
-      if (shouldScrollToEdited && lastEditedId) {
-        requestAnimationFrame(() => {
-          const target = document.getElementById(`row_${lastEditedId}`);
-          if (target) {
-            target.scrollIntoView({ behavior: "auto", block: "center" });
-            target.classList.add("border", "border-2", "border-primary");
-            setTimeout(() => target.classList.remove("border", "border-2", "border-primary"), 900);
-          }
-          shouldScrollToEdited = false;
-        });
-      }
+      refreshList();
     }
 
     function confirmDelete(id) {
