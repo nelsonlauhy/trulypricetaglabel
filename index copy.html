@@ -10,6 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
+  <!-- ✅ Load firebase init helper (NO secrets in repo) -->
   <script src="/js/firebaseConfig.js"></script>
 
   <link rel="icon" href="/images/truly_favicon_o1.png" type="image/png" />
@@ -56,6 +57,7 @@
 </head>
 
 <body class="bg-light">
+  <!-- Navbar placeholder -->
   <div id="navbarContainer"></div>
   <script>
     fetch("/navbar.html")
@@ -115,6 +117,7 @@
   </div>
 
   <script>
+    // ✅ Firestore db (init after Firebase ready)
     let db;
 
     let allData = [];
@@ -154,8 +157,6 @@
           : "";
 
         const titleText = doc["Title"] || "";
-        const safeTitle = encodeURIComponent(titleText || "");
-
         const titleLink = doc["Product URL"]
           ? `<a href="${doc["Product URL"]}" target="_blank">${titleText}</a>`
           : titleText;
@@ -174,7 +175,7 @@
             </div>
           </td>
           <td contenteditable="true" data-field="ProductDesc">${doc["ProductDesc"] || ""}</td>
-          <td><button class="btn btn-sm btn-outline-primary" onclick="addToPrintList('${safeTitle}')">Add to Print List</button></td>
+          <td><button class="btn btn-sm btn-outline-primary" onclick="addToPrintList('${titleText.replace(/'/g, "\\'")}')">Add to Print List</button></td>
         `;
         tbody.appendChild(row);
       });
@@ -234,9 +235,7 @@
       renderList(filteredData);
     }
 
-    function addToPrintList(encodedTitle) {
-      const title = decodeURIComponent(encodedTitle);
-
+    function addToPrintList(title) {
       const row = [...document.querySelectorAll("#productList tr")].find(tr =>
         tr.cells[2]?.textContent.trim() === title
       );
@@ -538,6 +537,7 @@
       if (iframe) iframe.contentWindow.print();
     }
 
+    // ✅ init: Firebase first, then loadData
     (async function init() {
       try {
         db = await window.initFirebase();
