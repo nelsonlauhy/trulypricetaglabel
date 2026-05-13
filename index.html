@@ -184,6 +184,9 @@
           </td>
         `;
         tbody.appendChild(row);
+        row.querySelector(".add-print-btn").addEventListener("click", function () {
+          addToPrintListByVariantId(this.dataset.variantId);
+        });
       });
 
       renderPagination(data.length);
@@ -241,21 +244,28 @@
       renderList(filteredData);
     }
 
-    function addToPrintList(encodedTitle) {
-      const title = decodeURIComponent(encodedTitle);
+    function addToPrintListByVariantId(variantIdRaw) {
+      const variantId = Number(variantIdRaw);
 
       const row = [...document.querySelectorAll("#productList tr")].find(tr =>
-        tr.cells[2]?.textContent.trim() === title
+        Number(tr.cells[1]?.textContent?.trim()) === variantId
       );
-      if (!row) return;
 
-      const variantId = Number(row.cells[1]?.textContent?.trim());
+      if (!row) {
+        alert("⚠️ Cannot find this product row.");
+        return;
+      }
+
+      const title = row.cells[2]?.textContent.trim() || "";
       const tagContainer = document.getElementById("printListTags");
-      if ([...tagContainer.children].some(el => el.dataset.variantId == variantId)) return;
 
-      const ProductNameEng = row.cells[5]?.textContent.trim();
-      const ProductNameChi = row.querySelector('[data-field="ProductNameChi"]')?.textContent.trim();
-      const ProductDesc = row.cells[7]?.textContent.trim();
+      if ([...tagContainer.children].some(el => el.dataset.variantId == variantId)) {
+        return;
+      }
+
+      const ProductNameEng = row.cells[5]?.textContent.trim() || "";
+      const ProductNameChi = row.querySelector('[data-field="ProductNameChi"]')?.textContent.trim() || "";
+      const ProductDesc = row.cells[7]?.textContent.trim() || "";
 
       db.collection("pricetaglabel")
         .where("Variant ID", "==", variantId)
@@ -282,13 +292,18 @@
       const tag = document.createElement("span");
       tag.className = "tag";
       tag.dataset.variantId = variantId;
-      tag.innerHTML = `${title}<button type="button" class="btn-close btn-close-white ms-2" aria-label="Remove"></button>`;
+
+      tag.innerHTML = `
+        ${title}
+        <button type="button" class="btn-close btn-close-white ms-2" aria-label="Remove"></button>
+      `;
+
       tag.querySelector(".btn-close").onclick = () => {
         tag.remove();
         toggleSubmitButton();
       };
-      tagContainer.appendChild(tag);
 
+      tagContainer.appendChild(tag);
       toggleSubmitButton();
     }
 
