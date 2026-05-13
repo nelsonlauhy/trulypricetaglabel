@@ -154,6 +154,7 @@
           : "";
 
         const titleText = doc["Title"] || "";
+        const variantId = doc["Variant ID"] || "";
         const safeTitle = encodeURIComponent(titleText || "");
 
         const titleLink = doc["Product URL"]
@@ -174,7 +175,13 @@
             </div>
           </td>
           <td contenteditable="true" data-field="ProductDesc">${doc["ProductDesc"] || ""}</td>
-          <td><button class="btn btn-sm btn-outline-primary" onclick="addToPrintList('${safeTitle}')">Add to Print List</button></td>
+          <td>
+            <button 
+              class="btn btn-sm btn-outline-primary add-print-btn" 
+              data-variant-id="${variantId}">
+              Add to Print List
+            </button>
+          </td>
         `;
         tbody.appendChild(row);
       });
